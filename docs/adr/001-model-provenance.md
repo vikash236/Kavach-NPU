@@ -27,6 +27,8 @@ Each dataset release records source, license/consent, collection window, feature
 
 The pipeline shape is: ingest and redact -> validate schema/license -> derive stable features -> label and adjudicate -> host-separated train/validation/test -> calibrate per-head thresholds -> evaluate against benign edge cases -> train/export FP32 -> static INT8 QDQ quantize -> ONNX checker and CPU/NPU parity checks -> produce signed model manifest, SBOM, and evaluation report. The release gate includes false-positive rates for named high-entropy software, latency, model drift checks, and rollback compatibility.
 
+`kavach-train/` now contains the inert contract for that external pipeline: a dataset-manifest template and an evaluation-report v1 schema. The report’s canonical JSON SHA-256 is a required field in the model manifest (ADR 004), making the release evidence immutable and reviewable without importing raw training data into this repository.
+
 ## Trade-offs and failure modes
 
 This costs collection and analyst time, and public malware corpora cannot represent every enterprise. A stale corpus can overfit old ransomware or label a new backup product as malicious. Data poisoning, accidental customer identifiers, train/test leakage, and quantization-induced score drift are material risks. Versioned provenance, redaction review, host-separated splits, approval gates, and held-out benign workloads reduce those risks but do not eliminate them. A model that lacks its manifest or required evaluation evidence is not eligible for release.

@@ -13,6 +13,7 @@ members = [
     "crates/kavach-firewall",
     "crates/kavach-events",
     "crates/kavach-wsl",
+    "kavach-train",
 ]
 resolver = "3"
 

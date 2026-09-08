@@ -1,0 +1,28 @@
+# Schema/example for a canonical dataset manifest. Keys are required unless marked optional.
+schema_version = "1.0"
+dataset_id = "io-benign-corpus-2026q3"
+head = "io_entropy" # io_entropy | c2_timing | event_sequence
+created_at = "2026-09-09T00:00:00Z"
+data_digest_sha256 = "<64 lowercase hexadecimal characters>"
+feature_schema_id = "io-window-v1"
+label_policy_id = "io-ground-truth-v1"
+split_strategy = "host_campaign_time_v1"
+split_seed = 0
+
+[provenance]
+source_kind = "consented_collection" # consented_collection | public_corpus | isolated_lab
+source_name = "approved-source-name"
+license_or_consent = "internal-consent-record-id"
+collection_start = "2026-07-01T00:00:00Z"
+collection_end = "2026-08-31T23:59:59Z"
+redaction_profile = "telemetry-redaction-v1"
+
+[[labels]]
+name = "benign"
+evidence = "controlled-workload-manifest"
+review_state = "adjudicated" # generated | reviewed | adjudicated
+
+[[splits]]
+name = "train" # train | validation | test
+selector_digest_sha256 = "<64 lowercase hexadecimal characters>"
+host_or_campaign_overlap_allowed = false
