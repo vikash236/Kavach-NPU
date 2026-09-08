@@ -41,3 +41,6 @@ version = "0.1.0"
 [[package]]
 name = "kavach-wsl"
 version = "0.1.0"
+dependencies = [
+ "kavach-core",
+]
