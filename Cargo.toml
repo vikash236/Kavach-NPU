@@ -1,0 +1,25 @@
+[package]
+name = "kavach-npu"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+publish = false
+
+[workspace]
+members = [
+    "crates/kavach-core",
+    "crates/kavach-tripwire",
+    "crates/kavach-beacon",
+    "crates/kavach-firewall",
+    "crates/kavach-events",
+    "crates/kavach-wsl",
+]
+resolver = "3"
+
+[dependencies]
+kavach-beacon = { path = "crates/kavach-beacon" }
+kavach-core = { path = "crates/kavach-core" }
+kavach-events = { path = "crates/kavach-events" }
+kavach-firewall = { path = "crates/kavach-firewall" }
+kavach-tripwire = { path = "crates/kavach-tripwire" }
+kavach-wsl = { path = "crates/kavach-wsl" }
