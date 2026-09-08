@@ -7,7 +7,7 @@ Every field below is required unless marked optional. Reports are release eviden
 
 ```json
 {
-  "schema_version": "1.0",
+  "artifact_version": {"major": 1, "minor": 0},
   "report_id": "eval-2026q3-001",
   "model_bundle_version": "1.0.0",
   "created_at": "2026-09-09T00:00:00Z",
