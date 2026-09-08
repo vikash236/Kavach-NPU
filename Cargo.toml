@@ -16,11 +16,3 @@ members = [
     "kavach-train",
 ]
 resolver = "3"
-
-[dependencies]
-kavach-beacon = { path = "crates/kavach-beacon" }
-kavach-core = { path = "crates/kavach-core" }
-kavach-events = { path = "crates/kavach-events" }
-kavach-firewall = { path = "crates/kavach-firewall" }
-kavach-tripwire = { path = "crates/kavach-tripwire" }
-kavach-wsl = { path = "crates/kavach-wsl" }
