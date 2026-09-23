@@ -430,6 +430,7 @@ USAGE:
 
 SUBCOMMANDS:
     status                  Display operational status and model integrity contract
+    npu-check               Probe AMD NPU hardware device, driver version, and runtime bitstreams
     tripwire --test [PATH]  Run Shannon block entropy and sliding-window burst test
     wsl --lab-mode          Run WSL2 AF_VSOCK correlation challenge-response simulation
     daemon [--live]         Start the sentinel runtime daemon (--live for real ETW/WFP)
@@ -451,6 +452,16 @@ fn main() {
         "status" => {
             let status = collect_status(&config);
             println!("{}", status);
+        }
+        "npu-check" => {
+            println!("=== Kavach-NPU Hardware & Runtime Probe ===");
+            let hw = kavach_core::NpuHardwareInfo::probe();
+            println!("  Hardware Device Detected: {}", if hw.device_detected { "YES (PCI VEN_1022 DEV_1502)" } else { "NO" });
+            println!("  NPU Driver Version:       {}", hw.driver_version.as_deref().unwrap_or("NOT DETECTED"));
+            println!("  Runtime Bin Directory:    {}", hw.runtime_bin_dir.as_ref().map(|p| p.display().to_string()).unwrap_or_else(|| "MISSING".to_string()));
+            println!("  Phoenix xclbin Bitstream: {}", hw.xclbin_path.as_ref().map(|p| p.display().to_string()).unwrap_or_else(|| "MISSING".to_string()));
+            println!("  Selected Backend:         {}", hw.selected_backend);
+            println!("===========================================");
         }
         "tripwire" => {
             let path_arg = if args.len() > 3 && args[2] == "--test" {
