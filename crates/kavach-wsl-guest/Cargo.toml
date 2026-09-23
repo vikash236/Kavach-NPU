@@ -1,0 +1,16 @@
+[package]
+name = "kavach-wsl-guest"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+publish = false
+
+[[bin]]
+name = "kavach-wsl-guest"
+path = "src/main.rs"
+
+[dependencies]
+kavach-core = { path = "../kavach-core" }
+kavach-wsl = { path = "../kavach-wsl" }
+sha2 = "0.10"
+hex = "0.4"
