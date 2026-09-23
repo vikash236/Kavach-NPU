@@ -1,7 +1,9 @@
 //! Contracts shared by the unprivileged detector and enforcement broker.
 
+use serde::{Deserialize, Serialize};
+
 /// Version identifier shared by versioned Kavach artifacts under ADR 003 and ADR 006.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ArtifactVersion {
     /// Breaking compatibility generation.
     pub major: u16,
@@ -9,16 +11,34 @@ pub struct ArtifactVersion {
     pub minor: u16,
 }
 
+pub mod allowlist;
+pub mod config;
+pub mod manifest;
+pub mod npu;
+pub mod tensor;
+pub mod wire;
+pub use allowlist::{AllowlistEntry, AllowlistError, AllowlistManifest, AuthenticodeIdentity};
+pub use config::{
+    AllowlistConfig, ConfigError, ContainmentConfig, KavachConfig, ModelConfig, WslConfig,
+};
+pub use manifest::{DegradedReason, ModelManifest, OnnxMetadata, TensorContract, decode_base64};
+pub use npu::{NpuError, NpuSession, NpuState};
+pub use tensor::{
+    AuditInputTensor, IoInputTensor, NetInputTensor, QuantizationParams, dequantize_i8_to_f32,
+    quantize_f32_to_i8,
+};
+pub use wire::{MAX_EXPIRY_WINDOW_MS, SUPPORTED_PROTOCOL_MAJOR, VERDICT_WIRE_SIZE, WireError};
+
 /// A requested response, evaluated by the privileged broker under ADR 002 and ADR 003.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EnforcementAction {
     /// Record an alert without changing host state.
-    Alert,
+    Alert = 0,
     /// Request a reversible process suspension.
-    SuspendAndAlert,
+    SuspendAndAlert = 1,
     /// Request an opt-in, high-confidence irreversible termination.
-    HardKill,
+    HardKill = 2,
 }
 
 /// Fixed-size verdict contract submitted to the broker under ADR 003 and ADR 006.
