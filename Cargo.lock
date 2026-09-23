@@ -181,6 +181,15 @@ dependencies = [
 [[package]]
 name = "kavach-npu"
 version = "0.1.0"
+dependencies = [
+ "hex",
+ "kavach-beacon",
+ "kavach-core",
+ "kavach-events",
+ "kavach-firewall",
+ "kavach-tripwire",
+ "kavach-wsl",
+]
 
 [[package]]
 name = "kavach-train"
