@@ -13,6 +13,7 @@ pub struct ArtifactVersion {
 
 pub mod allowlist;
 pub mod config;
+pub mod keys;
 pub mod manifest;
 pub mod npu;
 pub mod tensor;
@@ -21,7 +22,10 @@ pub use allowlist::{AllowlistEntry, AllowlistError, AllowlistManifest, Authentic
 pub use config::{
     AllowlistConfig, ConfigError, ContainmentConfig, KavachConfig, ModelConfig, WslConfig,
 };
-pub use manifest::{DegradedReason, ModelManifest, OnnxMetadata, TensorContract, decode_base64};
+pub use keys::{PINNED_DEV_PUBLIC_KEY, dev_signing_key, dev_verifying_key};
+pub use manifest::{
+    DegradedReason, ModelManifest, OnnxMetadata, TensorContract, decode_base64, encode_base64,
+};
 pub use npu::{NpuError, NpuSession, NpuState};
 pub use tensor::{
     AuditInputTensor, IoInputTensor, NetInputTensor, QuantizationParams, dequantize_i8_to_f32,

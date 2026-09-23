@@ -8,7 +8,6 @@
 
 use kavach_beacon::{FlowKey, PacketDirection, PacketMeta, TcnEngine};
 use kavach_core::config::KavachConfig;
-use kavach_core::manifest::DegradedReason;
 use kavach_core::npu::NpuSession;
 use kavach_events::{CriticalEventId, EventSubscriber, SecurityEventRecord};
 use kavach_firewall::rule::QuarantineTarget;
@@ -49,12 +48,8 @@ impl std::fmt::Display for SystemStatusReport {
 /// Collects system health and status against the active configuration and NPU session.
 pub fn collect_status(config: &KavachConfig) -> SystemStatusReport {
     // Model bundle verification per ADR 004:
-    // In default distribution without loaded ONNX bundle, initialize DegradedObserver state.
-    let npu = NpuSession::new_degraded(
-        DegradedReason::BundleMissing("bundle directory not found".to_string()),
-        config.model.minimum_rollback_generation,
-        "model-2026-a",
-    );
+    // Dynamically verify bundle directory specified in config using the pinned development key.
+    let npu = NpuSession::from_config(config, &kavach_core::PINNED_DEV_PUBLIC_KEY);
 
     let npu_status_block = npu.format_status_report();
 
@@ -445,8 +440,21 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_collect_status_degraded_contract() {
+    fn test_collect_status_active_with_valid_bundle() {
         let config = KavachConfig::safe_defaults();
+        let report = collect_status(&config);
+
+        let output = format!("{}", report);
+        assert!(output.contains("Kavach-NPU status: ACTIVE"));
+        assert!(output.contains("model.bundle: kavach_multitask_int8.onnx"));
+        assert!(output.contains("enforcement: ENABLED"));
+        assert!(output.contains("telemetry: HARDWARE_ACCELERATED"));
+    }
+
+    #[test]
+    fn test_collect_status_degraded_contract() {
+        let mut config = KavachConfig::safe_defaults();
+        config.model.bundle_directory = std::path::PathBuf::from("nonexistent_bundle_dir");
         let report = collect_status(&config);
 
         let output = format!("{}", report);
@@ -455,6 +463,17 @@ mod tests {
         assert!(output.contains("model.expected_key_id: model-2026-a"));
         assert!(output.contains("enforcement: DISABLED (model-driven actions denied)"));
         assert!(output.contains("telemetry: OBSERVER_ONLY"));
+    }
+
+    #[test]
+    fn test_collect_status_rollback_rejected() {
+        let mut config = KavachConfig::safe_defaults();
+        config.model.minimum_rollback_generation = 999;
+        let report = collect_status(&config);
+
+        let output = format!("{}", report);
+        assert!(output.contains("Kavach-NPU status: DEGRADED_OBSERVER"));
+        assert!(output.contains("model.reason: rollback_rejected"));
     }
 
     #[test]

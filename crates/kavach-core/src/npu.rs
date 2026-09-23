@@ -69,6 +69,37 @@ impl NpuSession {
         }
     }
 
+    /// Constructs an NPU session by reading and verifying the bundle directory specified in config.
+    /// Returns Active if verification succeeds, or DegradedObserver on any failure. Never panics.
+    pub fn from_config(
+        config: &crate::config::KavachConfig,
+        verifying_key_bytes: &[u8; 32],
+    ) -> Self {
+        let verifying_key = match ed25519_dalek::VerifyingKey::from_bytes(verifying_key_bytes) {
+            Ok(k) => k,
+            Err(e) => {
+                return Self::new_degraded(
+                    DegradedReason::ManifestSignatureInvalid(format!("invalid verifying key: {e}")),
+                    config.model.minimum_rollback_generation,
+                    "model-2026-a",
+                );
+            }
+        };
+
+        match crate::manifest::verify_bundle_dir(
+            &config.model.bundle_directory,
+            &verifying_key,
+            config.model.minimum_rollback_generation,
+        ) {
+            Ok(manifest) => Self::new_active(manifest),
+            Err(reason) => Self::new_degraded(
+                reason,
+                config.model.minimum_rollback_generation,
+                "model-2026-a",
+            ),
+        }
+    }
+
     /// Returns the active operational state.
     pub fn state(&self) -> &NpuState {
         &self.state
