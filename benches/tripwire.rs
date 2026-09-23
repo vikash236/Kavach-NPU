@@ -73,6 +73,17 @@ fn bench_tripwire(c: &mut Criterion) {
         });
     });
 
+    // 6. Complete NPU Head 1 Hardware Dispatch (< 1.2ms README SLA)
+    let config = kavach_core::KavachConfig::safe_defaults();
+    let npu_session = kavach_core::NpuSession::from_config(&config, &kavach_core::PINNED_DEV_PUBLIC_KEY);
+    let io_tensor = IoInputTensor::from_f32_matrix(&f32_matrix, qparams);
+
+    group.bench_function("npu_session_io_inference", |b| {
+        b.iter(|| {
+            npu_session.evaluate_io_head(black_box(&io_tensor)).unwrap();
+        });
+    });
+
     group.finish();
 }
 
