@@ -32,3 +32,26 @@ hex = "0.4"
 [target.'cfg(windows)'.dependencies]
 kavach-sensors = { path = "crates/kavach-sensors" }
 
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "tripwire"
+harness = false
+
+[[bench]]
+name = "beacon"
+harness = false
+
+[[bench]]
+name = "events"
+harness = false
+
+[[bench]]
+name = "wsl"
+harness = false
+
+[[bench]]
+name = "stress"
+harness = false
+
