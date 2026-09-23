@@ -9,7 +9,7 @@
   "key_id": "model-2026-a",
   "onnx": {
     "file": "kavach_multitask_int8.onnx",
-    "sha256": "31f8f2471d6c7b489df3c1f6e9c8fd213b05b171c04a4bcc84f253b83ef9bb63",
+    "sha256": "485a9f8f7988dcd56fae1e9d7753eb3498d17c075582ac3aff95978c4ca1836d",
     "opset": 21,
     "quantization": "int8_qdq"
   },

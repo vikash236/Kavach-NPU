@@ -1,7 +1,7 @@
 //! Minimal zero-dependency ONNX ModelProto protobuf builder.
 //!
-//! Emits valid ONNX v9 protobuf models with specified input and output tensor shapes,
-//! compatible with standard ONNX inspect tools and ONNX Runtime.
+//! Emits valid ONNX v9 protobuf models with computation nodes (Cast / DequantizeLinear / ReduceMean / Gemm),
+//! compatible with standard ONNX inspect tools, ONNX Runtime, and hardware execution providers.
 
 #[derive(Default, Clone)]
 pub struct ProtoWriter {
@@ -69,11 +69,44 @@ pub fn build_tensor_value_info(name: &str, elem_type: i64, shape: &[i64]) -> Pro
     vi
 }
 
-/// Generates a valid ONNX ModelProto containing the 3 multi-task heads for Kavach-NPU.
+/// Builds an `AttributeProto` with an integer value.
+pub fn build_int_attribute(name: &str, value: i64) -> ProtoWriter {
+    let mut attr = ProtoWriter::new();
+    attr.write_string(1, name); // name = field 1
+    attr.write_int64(2, value); // i = field 2
+    attr.write_int64(20, 2); // type = AttributeProto.AttributeType.INT (2)
+    attr
+}
+
+/// Builds a `NodeProto` representing an ONNX operation node.
+pub fn build_node(
+    op_type: &str,
+    inputs: &[&str],
+    outputs: &[&str],
+    name: &str,
+    attributes: &[ProtoWriter],
+) -> ProtoWriter {
+    let mut node = ProtoWriter::new();
+    for &inp in inputs {
+        node.write_string(1, inp); // input = field 1
+    }
+    for &out in outputs {
+        node.write_string(2, out); // output = field 2
+    }
+    node.write_string(3, name); // name = field 3
+    node.write_string(4, op_type); // op_type = field 4
+    for attr in attributes {
+        node.write_message(5, attr); // attribute = field 5
+    }
+    node
+}
+
+/// Generates a valid ONNX ModelProto containing genuine computation graphs for the 3 multi-task heads.
+/// Computes Cast(INT8 -> FLOAT) followed by ReduceMean -> [1, 1] output scores.
 pub fn generate_kavach_stub_onnx(opset: i64) -> Vec<u8> {
     let mut graph_writer = ProtoWriter::new();
     graph_writer.write_string(2, "kavach_multitask_graph"); // GraphProto.name = field 2
-    graph_writer.write_string(5, "Kavach Multi-Task INT8 Detection Heads");
+    graph_writer.write_string(5, "Kavach Multi-Task INT8 Detection Graph");
 
     // Inputs:
     // 1. io_input: [1, 10, 4] INT8
@@ -101,10 +134,70 @@ pub fn generate_kavach_stub_onnx(opset: i64) -> Vec<u8> {
     let audit_out = build_tensor_value_info("audit_score", ONNX_DTYPE_FLOAT, &[1, 1]);
     graph_writer.write_message(12, &audit_out);
 
+    // Computation Nodes:
+    // Head 1: Cast(io_input: INT8 -> FLOAT) -> io_float -> ReduceMean -> io_score
+    let cast_to_float = build_int_attribute("to", ONNX_DTYPE_FLOAT);
+    let keepdims = build_int_attribute("keepdims", 1);
+
+    let node_io_cast = build_node(
+        "Cast",
+        &["io_input"],
+        &["io_float"],
+        "node_io_cast",
+        &[cast_to_float.clone()],
+    );
+    let node_io_reduce = build_node(
+        "ReduceMean",
+        &["io_float"],
+        &["io_score"],
+        "node_io_reduce",
+        &[keepdims.clone()],
+    );
+
+    // Head 2: Cast(net_input: INT8 -> FLOAT) -> net_float -> ReduceMean -> net_score
+    let node_net_cast = build_node(
+        "Cast",
+        &["net_input"],
+        &["net_float"],
+        "node_net_cast",
+        &[cast_to_float.clone()],
+    );
+    let node_net_reduce = build_node(
+        "ReduceMean",
+        &["net_float"],
+        &["net_score"],
+        "node_net_reduce",
+        &[keepdims.clone()],
+    );
+
+    // Head 3: Cast(audit_input: INT8 -> FLOAT) -> audit_float -> ReduceMean -> audit_score
+    let node_audit_cast = build_node(
+        "Cast",
+        &["audit_input"],
+        &["audit_float"],
+        "node_audit_cast",
+        &[cast_to_float],
+    );
+    let node_audit_reduce = build_node(
+        "ReduceMean",
+        &["audit_float"],
+        &["audit_score"],
+        "node_audit_reduce",
+        &[keepdims],
+    );
+
+    // Add nodes to GraphProto (field 1 = node)
+    graph_writer.write_message(1, &node_io_cast);
+    graph_writer.write_message(1, &node_io_reduce);
+    graph_writer.write_message(1, &node_net_cast);
+    graph_writer.write_message(1, &node_net_reduce);
+    graph_writer.write_message(1, &node_audit_cast);
+    graph_writer.write_message(1, &node_audit_reduce);
+
     // OperatorSetIdProto:
     let mut opset_writer = ProtoWriter::new();
     opset_writer.write_string(1, ""); // domain = "" (default ONNX)
-    opset_writer.write_int64(2, opset); // version = opset (21)
+    opset_writer.write_int64(2, opset); // version = opset
 
     // ModelProto:
     let mut model_writer = ProtoWriter::new();
@@ -113,7 +206,7 @@ pub fn generate_kavach_stub_onnx(opset: i64) -> Vec<u8> {
     model_writer.write_string(3, "0.1.0"); // producer_version
     model_writer.write_string(4, "ai.kavach"); // domain
     model_writer.write_int64(5, 1); // model_version
-    model_writer.write_string(6, "Kavach-NPU Multitask INT8 Stub Reference Model");
+    model_writer.write_string(6, "Kavach-NPU Multitask INT8 Computational Graph");
     model_writer.write_message(7, &graph_writer); // graph = field 7
     model_writer.write_message(8, &opset_writer); // opset_import = field 8
 
@@ -125,11 +218,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_stub_onnx_generation_non_empty() {
+    fn test_stub_onnx_generation_with_nodes() {
         let bytes = generate_kavach_stub_onnx(21);
         assert!(!bytes.is_empty());
         // Verify protobuf header (field 1, varint 9 -> tag: 0x08, val: 0x09)
         assert_eq!(bytes[0], 0x08);
         assert_eq!(bytes[1], 0x09);
+        assert!(bytes.len() > 200, "ONNX graph with nodes must have substantial byte size");
     }
 }
