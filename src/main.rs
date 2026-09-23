@@ -371,6 +371,11 @@ pub fn run_sentinel_daemon(config: &KavachConfig) {
 
 #[cfg(windows)]
 pub fn run_live_sentinel_daemon(config: &KavachConfig) {
+    run_live_sentinel_daemon_ext(config, false, 3);
+}
+
+#[cfg(windows)]
+pub fn run_live_sentinel_daemon_ext(config: &KavachConfig, continuous: bool, max_ticks: usize) {
     use kavach_sensors::{
         EventLogConsumer, KernelFileConsumer, PipeBrokerServer, PipeVerdictDispatcher,
         TcpipConsumer, WfpDriver, KAVACH_BROKER_PIPE_NAME,
@@ -415,14 +420,22 @@ pub fn run_live_sentinel_daemon(config: &KavachConfig) {
     let npu_session = NpuSession::from_config(config, &kavach_core::PINNED_DEV_PUBLIC_KEY);
     println!("  [+] NPU Session linked: backend={}", npu_session.hardware_info().selected_backend);
     println!("Live Sentinel Daemon active (hardware telemetry linked).");
+    if continuous {
+        println!("Continuous monitoring active (100ms NPU heartbeat). Press Ctrl+C to exit.");
+    }
 
-    // Periodic evaluation loop (runs for 3 ticks or until interrupted in live mode)
     let start_ts = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_millis() as u64;
 
-    for tick in 1..=3 {
+    let mut tick = 0u64;
+    loop {
+        tick += 1;
+        if !continuous && tick > max_ticks as u64 {
+            break;
+        }
+
         std::thread::sleep(std::time::Duration::from_millis(100));
         let now_ms = start_ts + tick * 100;
 
@@ -433,7 +446,7 @@ pub fn run_live_sentinel_daemon(config: &KavachConfig) {
             if io_score >= 0.85 {
                 println!("  [NPU ALERT] Head 1 (I/O Entropy Anomaly): score={:.4} >= 0.85", io_score);
                 let mut req_id = [0u8; 16];
-                req_id[0] = tick as u8;
+                req_id[0] = (tick & 0xFF) as u8;
                 let verdict = kavach_core::Verdict {
                     protocol_version: kavach_core::ArtifactVersion { major: 1, minor: 0 },
                     request_id: req_id,
@@ -493,8 +506,8 @@ SUBCOMMANDS:
     npu-check               Probe AMD NPU hardware device, driver version, and runtime bitstreams
     tripwire --test [PATH]  Run Shannon block entropy and sliding-window burst test
     wsl --lab-mode          Run WSL2 AF_VSOCK correlation challenge-response simulation
-    daemon [--live]         Start the sentinel runtime daemon (--live for real ETW/WFP)
-    --help, -h              Print this help information
+    daemon [--live] [--continuous]  Start the sentinel runtime daemon (--live for real ETW/WFP, -c for continuous)
+    --help, -h                      Print this help information
 "#
     );
 }
@@ -545,7 +558,11 @@ fn main() {
             }
         }
         "daemon" => {
-            if args.len() > 2 && args[2] == "--live" {
+            if args.iter().any(|a| a == "--live") {
+                let continuous = args.iter().any(|a| a == "--continuous" || a == "-c");
+                #[cfg(windows)]
+                run_live_sentinel_daemon_ext(&config, continuous, 3);
+                #[cfg(not(windows))]
                 run_live_sentinel_daemon(&config);
             } else {
                 run_sentinel_daemon(&config);
