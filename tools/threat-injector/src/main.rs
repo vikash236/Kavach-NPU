@@ -44,14 +44,6 @@ SUBCOMMANDS:
     );
 }
 
-fn parse_arg(args: &[String], flag: &str) -> Option<String> {
-    for i in 0..args.len() {
-        if args[i] == flag && i + 1 < args.len() {
-            return Some(args[i + 1].clone());
-        }
-    }
-    None
-}
 
 /// Generates a high-entropy pseudo-random block simulating AES/ChaCha20 ciphertext.
 fn generate_ciphertext_block(size: usize, seed: u32) -> Vec<u8> {
@@ -160,6 +152,17 @@ pub fn run_full_scenario() -> Result<(), String> {
     Ok(())
 }
 
+fn parse_arg_aliases(args: &[String], flags: &[&str]) -> Option<String> {
+    for i in 0..args.len() {
+        for flag in flags {
+            if args[i] == *flag && i + 1 < args.len() {
+                return Some(args[i + 1].clone());
+            }
+        }
+    }
+    None
+}
+
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
@@ -167,21 +170,39 @@ fn main() {
         return;
     }
 
-    let result = match args[1].as_str() {
+    // Support both positional subcommand (`threat-injector ransomware`) and flag style (`threat-injector --mode ransomware`)
+    let mode = if let Some(m) = parse_arg_aliases(&args, &["--mode", "-m"]) {
+        m
+    } else {
+        args[1].clone()
+    };
+
+    let result = match mode.as_str() {
         "ransomware" => {
-            let target_str = parse_arg(&args, "--target").unwrap_or_else(|| "target/sandbox".to_string());
-            let files: usize = parse_arg(&args, "--files").and_then(|s| s.parse().ok()).unwrap_or(10);
+            let target_str = parse_arg_aliases(&args, &["--target", "--target-dir", "-t"])
+                .unwrap_or_else(|| "target/sandbox".to_string());
+            let files: usize = parse_arg_aliases(&args, &["--files", "--file-count", "-f", "-n"])
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(10);
             let intermittent = args.iter().any(|a| a == "--intermittent");
             run_ransomware_simulation(Path::new(&target_str), files, intermittent)
         }
         "c2" => {
-            let packets: usize = parse_arg(&args, "--packets").and_then(|s| s.parse().ok()).unwrap_or(32);
-            let interval: u64 = parse_arg(&args, "--interval-ms").and_then(|s| s.parse().ok()).unwrap_or(200);
-            let jitter: u32 = parse_arg(&args, "--jitter").and_then(|s| s.parse().ok()).unwrap_or(10);
+            let packets: usize = parse_arg_aliases(&args, &["--packets", "--packet-count", "-p"])
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(32);
+            let interval: u64 = parse_arg_aliases(&args, &["--interval-ms", "--interval", "-i"])
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(200);
+            let jitter: u32 = parse_arg_aliases(&args, &["--jitter", "-j"])
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(10);
             run_c2_simulation(packets, interval, jitter)
         }
         "audit" => {
-            let count: usize = parse_arg(&args, "--events").and_then(|s| s.parse().ok()).unwrap_or(5);
+            let count: usize = parse_arg_aliases(&args, &["--events", "--iterations", "--count", "-e"])
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(5);
             run_audit_simulation(count)
         }
         "full-scenario" => run_full_scenario(),
@@ -190,7 +211,7 @@ fn main() {
             Ok(())
         }
         other => {
-            eprintln!("Unknown subcommand: {}\n", other);
+            eprintln!("Unknown subcommand or mode: {}\n", other);
             print_usage();
             std::process::exit(1);
         }
