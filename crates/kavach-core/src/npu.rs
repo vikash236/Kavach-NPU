@@ -39,9 +39,19 @@ pub enum NpuState {
 }
 
 /// NPU session manager orchestrating inference across the multi-task model heads.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct NpuSession {
     state: NpuState,
+    engine: std::sync::Arc<crate::npu_backend::NpuEngine>,
+}
+
+impl Clone for NpuSession {
+    fn clone(&self) -> Self {
+        Self {
+            state: self.state.clone(),
+            engine: std::sync::Arc::clone(&self.engine),
+        }
+    }
 }
 
 impl NpuSession {
@@ -51,6 +61,7 @@ impl NpuSession {
             state: NpuState::Active {
                 manifest: Box::new(manifest),
             },
+            engine: std::sync::Arc::new(crate::npu_backend::NpuEngine::new()),
         }
     }
 
@@ -66,6 +77,7 @@ impl NpuSession {
                 rollback_minimum,
                 expected_key_id: expected_key_id.to_string(),
             },
+            engine: std::sync::Arc::new(crate::npu_backend::NpuEngine::new()),
         }
     }
 
@@ -105,6 +117,16 @@ impl NpuSession {
         &self.state
     }
 
+    /// Returns hardware provider information.
+    pub fn hardware_info(&self) -> &crate::npu_backend::NpuHardwareInfo {
+        self.engine.info()
+    }
+
+    /// Returns total inferences dispatched across all heads.
+    pub fn total_inferences(&self) -> u64 {
+        self.engine.total_inferences()
+    }
+
     /// Returns true if the session is operating in degraded observer mode.
     pub fn is_degraded(&self) -> bool {
         matches!(self.state, NpuState::DegradedObserver { .. })
@@ -112,14 +134,17 @@ impl NpuSession {
 
     /// Formats the canonical CLI status report conforming to model-manifest-v1.md.
     pub fn format_status_report(&self) -> String {
+        let hw = self.engine.info();
         match &self.state {
             NpuState::Active { manifest } => {
                 format!(
-                    "Kavach-NPU status: ACTIVE\nmodel.bundle: {}\nmodel.version: {}\nmodel.rollback_generation: {}\nmodel.opset: {}\nenforcement: ENABLED\ntelemetry: HARDWARE_ACCELERATED\n",
+                    "Kavach-NPU status: ACTIVE\nmodel.bundle: {}\nmodel.version: {}\nmodel.rollback_generation: {}\nmodel.opset: {}\nexecution.provider: {}\nhardware.npu_detected: {}\nenforcement: ENABLED\ntelemetry: HARDWARE_ACCELERATED\n",
                     manifest.onnx.file,
                     manifest.bundle_version,
                     manifest.rollback_generation,
-                    manifest.onnx.opset
+                    manifest.onnx.opset,
+                    hw.selected_backend,
+                    hw.device_detected
                 )
             }
             NpuState::DegradedObserver {
@@ -138,7 +163,8 @@ impl NpuSession {
                 };
 
                 format!(
-                    "Kavach-NPU status: DEGRADED_OBSERVER\nmodel.bundle: unavailable\nmodel.reason: {reason_code}\nmodel.expected_key_id: {expected_key_id}\nmodel.rollback_minimum: {rollback_minimum}\nenforcement: DISABLED (model-driven actions denied)\ntelemetry: OBSERVER_ONLY\n"
+                    "Kavach-NPU status: DEGRADED_OBSERVER\nmodel.bundle: unavailable\nmodel.reason: {reason_code}\nmodel.expected_key_id: {expected_key_id}\nmodel.rollback_minimum: {rollback_minimum}\nexecution.provider: {}\nenforcement: DISABLED (model-driven actions denied)\ntelemetry: OBSERVER_ONLY\n",
+                    hw.selected_backend
                 )
             }
         }
@@ -151,15 +177,7 @@ impl NpuSession {
                 Err(NpuError::DegradedObserver(reason.clone()))
             }
             NpuState::Active { .. } => {
-                // Baseline scoring across the [10, 4] tensor:
-                // Weighted average of normalized entropy (col 0) and intermittent score (col 3)
-                let mut score = 0.0f32;
-                for row in &input.data {
-                    let entropy_norm = (row[0] as f32) / 127.0;
-                    let intermittent = (row[3] as f32) / 127.0;
-                    score += entropy_norm * 0.7 + intermittent * 0.3;
-                }
-                Ok((score / 10.0).clamp(0.0, 1.0))
+                Ok(self.engine.run_io_inference(&input.data))
             }
         }
     }
@@ -171,12 +189,7 @@ impl NpuSession {
                 Err(NpuError::DegradedObserver(reason.clone()))
             }
             NpuState::Active { .. } => {
-                // Baseline score across the [32, 4] timing tensor
-                let mut total_delta = 0.0f32;
-                for row in &input.data {
-                    total_delta += (row[0] as f32) / 127.0;
-                }
-                Ok((total_delta / 32.0).clamp(0.0, 1.0))
+                Ok(self.engine.run_net_inference(&input.data))
             }
         }
     }
@@ -188,11 +201,7 @@ impl NpuSession {
                 Err(NpuError::DegradedObserver(reason.clone()))
             }
             NpuState::Active { .. } => {
-                let mut score = 0.0f32;
-                for row in &input.data {
-                    score += (row[0] as f32) / 127.0;
-                }
-                Ok((score / 16.0).clamp(0.0, 1.0))
+                Ok(self.engine.run_audit_inference(&input.data))
             }
         }
     }

@@ -16,6 +16,7 @@ pub mod config;
 pub mod keys;
 pub mod manifest;
 pub mod npu;
+pub mod npu_backend;
 pub mod tensor;
 pub mod wire;
 pub use allowlist::{AllowlistEntry, AllowlistError, AllowlistManifest, AuthenticodeIdentity};
@@ -27,6 +28,7 @@ pub use manifest::{
     DegradedReason, ModelManifest, OnnxMetadata, TensorContract, decode_base64, encode_base64,
 };
 pub use npu::{NpuError, NpuSession, NpuState};
+pub use npu_backend::{ExecutionProviderBackend, NpuEngine, NpuHardwareInfo, resolve_npu_paths};
 pub use tensor::{
     AuditInputTensor, IoInputTensor, NetInputTensor, QuantizationParams, dequantize_i8_to_f32,
     quantize_f32_to_i8,
