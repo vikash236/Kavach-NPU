@@ -13,6 +13,7 @@ members = [
     "crates/kavach-firewall",
     "crates/kavach-events",
     "crates/kavach-wsl",
+    "crates/kavach-sensors",
     "kavach-train",
     "tools/kavach-pack",
 ]
@@ -26,4 +27,7 @@ kavach-firewall = { path = "crates/kavach-firewall" }
 kavach-events = { path = "crates/kavach-events" }
 kavach-wsl = { path = "crates/kavach-wsl" }
 hex = "0.4"
+
+[target.'cfg(windows)'.dependencies]
+kavach-sensors = { path = "crates/kavach-sensors" }
 

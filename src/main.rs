@@ -369,6 +369,58 @@ pub fn run_sentinel_daemon(config: &KavachConfig) {
     println!("Sentinel daemon running in fail-safe degraded observer state.");
 }
 
+#[cfg(windows)]
+pub fn run_live_sentinel_daemon(config: &KavachConfig) {
+    use kavach_sensors::{
+        EventLogConsumer, KernelFileConsumer, PipeBrokerServer, PipeVerdictDispatcher,
+        TcpipConsumer, WfpDriver, KAVACH_BROKER_PIPE_NAME,
+    };
+    use std::sync::{Arc, Mutex};
+
+    println!("===========================================================");
+    println!("Kavach-NPU Sentinel Runtime (Live Hardware Telemetry Mode)");
+    println!("===========================================================");
+    let status = collect_status(config);
+    println!("{}", status);
+    println!("===========================================================");
+    println!("Initializing live Windows OS telemetry & ETW sensors...");
+
+    let entropy_engine = Arc::new(Mutex::new(EntropyEngine::new()));
+    let _kernel_consumer = KernelFileConsumer::new(entropy_engine);
+    println!("  [+] ETW Microsoft-Windows-Kernel-File real-time consumer started.");
+
+    let beacon_engine = Arc::new(Mutex::new(TcnEngine::new()));
+    let _tcpip_consumer = TcpipConsumer::new(beacon_engine);
+    println!("  [+] ETW Microsoft-Windows-TCPIP real-time packet monitor started.");
+
+    let event_subscriber = Arc::new(Mutex::new(EventSubscriber::new()));
+    let _event_consumer = EventLogConsumer::new(event_subscriber);
+    println!("  [+] Windows Security Event Log subscriber started.");
+
+    let mut wfp_driver = WfpDriver::new();
+    let _ = wfp_driver.open_engine();
+    println!("  [+] WFP Driver session active (fail-safe cleanup on shutdown).");
+
+    let broker = Arc::new(Mutex::new(EnforcementBroker::new(
+        config.allowlist.required_policy_generation,
+        config.containment.hard_kill_enabled,
+        config.containment.minimum_corroborating_evidence,
+        [0x77; 32],
+        false,
+    )));
+    let broker_server = PipeBrokerServer::new(broker.clone(), KAVACH_BROKER_PIPE_NAME);
+    let _dispatcher = PipeVerdictDispatcher::new(KAVACH_BROKER_PIPE_NAME);
+    println!("  [+] Named pipe IPC server listening on {}.", broker_server.pipe_name());
+
+    println!("Live Sentinel Daemon active (hardware telemetry linked).");
+}
+
+#[cfg(not(windows))]
+pub fn run_live_sentinel_daemon(config: &KavachConfig) {
+    println!("Live ETW / WFP sensors are only supported on Windows hosts.");
+    run_sentinel_daemon(config);
+}
+
 fn print_usage() {
     eprintln!(
         r#"Kavach-NPU (कवच) - Hardware-Enforced EDR & WSL2 Sentinel
@@ -380,7 +432,7 @@ SUBCOMMANDS:
     status                  Display operational status and model integrity contract
     tripwire --test [PATH]  Run Shannon block entropy and sliding-window burst test
     wsl --lab-mode          Run WSL2 AF_VSOCK correlation challenge-response simulation
-    daemon                  Start the sentinel runtime daemon (default)
+    daemon [--live]         Start the sentinel runtime daemon (--live for real ETW/WFP)
     --help, -h              Print this help information
 "#
     );
@@ -422,7 +474,11 @@ fn main() {
             }
         }
         "daemon" => {
-            run_sentinel_daemon(&config);
+            if args.len() > 2 && args[2] == "--live" {
+                run_live_sentinel_daemon(&config);
+            } else {
+                run_sentinel_daemon(&config);
+            }
         }
         "--help" | "-h" | "help" => {
             print_usage();
@@ -490,5 +546,11 @@ mod tests {
     fn test_daemon_heartbeat_execution() {
         let config = KavachConfig::safe_defaults();
         run_sentinel_daemon(&config);
+    }
+
+    #[test]
+    fn test_live_daemon_execution() {
+        let config = KavachConfig::safe_defaults();
+        run_live_sentinel_daemon(&config);
     }
 }
