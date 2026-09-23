@@ -53,6 +53,11 @@ impl EntropyEngine {
         shannon_entropy(bytes)
     }
 
+    /// Returns a reference to the inner WriteBurstTracker.
+    pub fn tracker(&self) -> &WriteBurstTracker {
+        &self.tracker
+    }
+
     /// Evaluates multi-block differential entropy across sparse blocks.
     pub fn evaluate_blocks(&self, block_entropies: &[f64]) -> SparseEntropySummary {
         differential_entropy(block_entropies)

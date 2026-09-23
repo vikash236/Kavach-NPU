@@ -85,6 +85,16 @@ impl WriteBurstTracker {
         self.events.retain(|e| e.timestamp_ms >= cutoff);
     }
 
+    /// Extracts the 10x4 tensor matrix across active events, or a zeroed matrix if empty.
+    pub fn build_tensor_matrix(&self) -> [[f32; NPU_FEATURES_PER_SLOT]; NPU_TIME_SLOTS] {
+        if let Some(last_event) = self.events.last() {
+            if let Some(eval) = self.evaluate_pid(last_event.pid, last_event.timestamp_ms) {
+                return eval.tensor_matrix;
+            }
+        }
+        [[0.0f32; NPU_FEATURES_PER_SLOT]; NPU_TIME_SLOTS]
+    }
+
     /// Evaluates the active sliding window for a given process identifier.
     pub fn evaluate_pid(&self, pid: u32, now_ms: u64) -> Option<ProcessBurstEvaluation> {
         let pid_events: Vec<&FileOperationEvent> =

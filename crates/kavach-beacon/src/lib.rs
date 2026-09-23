@@ -49,6 +49,16 @@ impl TcnEngine {
         self.flows.len()
     }
 
+    /// Extracts the first available full flow tensor matrix, or a zeroed matrix.
+    pub fn build_tensor_matrix(&self) -> [[f32; flow::FLOW_FEATURES_PER_PACKET]; flow::FLOW_WINDOW_SIZE] {
+        for flow in self.flows.values() {
+            if let Some(matrix) = flow.build_tensor_matrix() {
+                return matrix;
+            }
+        }
+        [[0.0f32; flow::FLOW_FEATURES_PER_PACKET]; flow::FLOW_WINDOW_SIZE]
+    }
+
     /// Clears all tracked flows.
     pub fn clear(&mut self) {
         self.flows.clear();

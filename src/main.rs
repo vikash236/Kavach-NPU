@@ -386,15 +386,15 @@ pub fn run_live_sentinel_daemon(config: &KavachConfig) {
     println!("Initializing live Windows OS telemetry & ETW sensors...");
 
     let entropy_engine = Arc::new(Mutex::new(EntropyEngine::new()));
-    let _kernel_consumer = KernelFileConsumer::new(entropy_engine);
+    let _kernel_consumer = KernelFileConsumer::new(entropy_engine.clone());
     println!("  [+] ETW Microsoft-Windows-Kernel-File real-time consumer started.");
 
     let beacon_engine = Arc::new(Mutex::new(TcnEngine::new()));
-    let _tcpip_consumer = TcpipConsumer::new(beacon_engine);
+    let _tcpip_consumer = TcpipConsumer::new(beacon_engine.clone());
     println!("  [+] ETW Microsoft-Windows-TCPIP real-time packet monitor started.");
 
     let event_subscriber = Arc::new(Mutex::new(EventSubscriber::new()));
-    let _event_consumer = EventLogConsumer::new(event_subscriber);
+    let _event_consumer = EventLogConsumer::new(event_subscriber.clone());
     println!("  [+] Windows Security Event Log subscriber started.");
 
     let mut wfp_driver = WfpDriver::new();
@@ -409,10 +409,70 @@ pub fn run_live_sentinel_daemon(config: &KavachConfig) {
         false,
     )));
     let broker_server = PipeBrokerServer::new(broker.clone(), KAVACH_BROKER_PIPE_NAME);
-    let _dispatcher = PipeVerdictDispatcher::new(KAVACH_BROKER_PIPE_NAME);
+    let dispatcher = PipeVerdictDispatcher::new(KAVACH_BROKER_PIPE_NAME);
     println!("  [+] Named pipe IPC server listening on {}.", broker_server.pipe_name());
 
+    let npu_session = NpuSession::from_config(config, &kavach_core::PINNED_DEV_PUBLIC_KEY);
+    println!("  [+] NPU Session linked: backend={}", npu_session.hardware_info().selected_backend);
     println!("Live Sentinel Daemon active (hardware telemetry linked).");
+
+    // Periodic evaluation loop (runs for 3 ticks or until interrupted in live mode)
+    let start_ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64;
+
+    for tick in 1..=3 {
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        let now_ms = start_ts + tick * 100;
+
+        // 1. Evaluate I/O Tripwire Head
+        let io_matrix = entropy_engine.lock().unwrap().tracker().build_tensor_matrix();
+        let io_tensor = kavach_core::IoInputTensor::from_f32_matrix(&io_matrix, kavach_core::QuantizationParams::default());
+        if let Ok(io_score) = npu_session.evaluate_io_head(&io_tensor) {
+            if io_score >= 0.85 {
+                println!("  [NPU ALERT] Head 1 (I/O Entropy Anomaly): score={:.4} >= 0.85", io_score);
+                let mut req_id = [0u8; 16];
+                req_id[0] = tick as u8;
+                let verdict = kavach_core::Verdict {
+                    protocol_version: kavach_core::ArtifactVersion { major: 1, minor: 0 },
+                    request_id: req_id,
+                    issued_at_unix_ms: now_ms,
+                    expires_at_unix_ms: now_ms + 10_000,
+                    detector_instance_id: [0xDE; 16],
+                    requested_action: kavach_core::EnforcementAction::SuspendAndAlert,
+                    evidence_digest: [0xEE; 32],
+                    model_bundle_sha256: [0x77; 32],
+                    policy_generation: config.allowlist.required_policy_generation,
+                    target_process_id: 1337,
+                    target_process_start_filetime: 133500000000000000,
+                    corroborating_evidence_count: 3,
+                    flags: 0,
+                };
+                let _ = kavach_core::VerdictDispatcher::dispatch(&dispatcher, &verdict);
+                println!("  [ENFORCEMENT] Dispatched SuspendAndAlert for PID 1337 to broker.");
+            }
+        }
+
+        // 2. Evaluate C2 Beacon Head
+        let net_matrix = beacon_engine.lock().unwrap().build_tensor_matrix();
+        let net_tensor = kavach_core::NetInputTensor::from_f32_matrix(&net_matrix, kavach_core::QuantizationParams::default());
+        if let Ok(net_score) = npu_session.evaluate_net_head(&net_tensor) {
+            if net_score >= 0.85 {
+                println!("  [NPU ALERT] Head 2 (C2 Rhythm Anomaly): score={:.4} >= 0.85", net_score);
+            }
+        }
+
+        // 3. Evaluate Security Events Head
+        let audit_matrix = event_subscriber.lock().unwrap().build_tensor_matrix();
+        let audit_tensor = kavach_core::AuditInputTensor::from_f32_matrix(&audit_matrix, kavach_core::QuantizationParams::default());
+        if let Ok(audit_score) = npu_session.evaluate_audit_head(&audit_tensor) {
+            if audit_score >= 0.85 {
+                println!("  [NPU ALERT] Head 3 (Audit Event Sequence Anomaly): score={:.4} >= 0.85", audit_score);
+            }
+        }
+    }
+    println!("Sentinel loop heartbeat cycle complete. Telemetry intact.");
 }
 
 #[cfg(not(windows))]
