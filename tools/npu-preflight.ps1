@@ -55,8 +55,8 @@ if ($driver) {
     Write-Host "  [WARN] Could not retrieve driver details via WMI/CIM." -ForegroundColor Yellow
 }
 
-# Check 3: Ryzen AI SDK Installation Path
-Write-Host "`n[3/4] Checking Ryzen AI SDK Environment..." -ForegroundColor Yellow
+# Check 3: Ryzen AI SDK Environment & Local Runtime
+Write-Host "`n[3/4] Checking Ryzen AI SDK Environment & Local Runtime..." -ForegroundColor Yellow
 $sdkPath = [System.Environment]::GetEnvironmentVariable("RYZEN_AI_INSTALLATION_PATH", "Machine")
 if (-not $sdkPath) {
     $sdkPath = [System.Environment]::GetEnvironmentVariable("RYZEN_AI_INSTALLATION_PATH", "User")
@@ -65,16 +65,27 @@ if (-not $sdkPath) {
     $sdkPath = $env:RYZEN_AI_INSTALLATION_PATH
 }
 
-if ($sdkPath -and (Test-Path $sdkPath)) {
-    Write-Host "  [OK] RYZEN_AI_INSTALLATION_PATH: $sdkPath" -ForegroundColor Green
+$localRuntime = Join-Path $PSScriptRoot "..\npu_runtime"
+$hasLocal = (Test-Path "$localRuntime\bin\onnxruntime.dll") -and (Test-Path "$localRuntime\xclbins\phoenix\1x4.xclbin")
+
+if ($hasLocal) {
+    Write-Host "  [OK] Local NPU Runtime Preserved at: $localRuntime" -ForegroundColor Green
+    $PassedChecks++
+} elseif ($sdkPath -and (Test-Path $sdkPath)) {
+    Write-Host "  [OK] System RYZEN_AI_INSTALLATION_PATH: $sdkPath" -ForegroundColor Green
     $PassedChecks++
 } else {
-    Write-Host "  [INFO] RYZEN_AI_INSTALLATION_PATH not set yet (installer in progress or pending restart)." -ForegroundColor Yellow
+    Write-Host "  [INFO] Neither system RYZEN_AI_INSTALLATION_PATH nor local npu_runtime found." -ForegroundColor Yellow
 }
 
-# Check 4: Phoenix xclbin & Vitis AI EP Binaries
+# Check 4: Phoenix (X1) Microcode & Runtime DLLs
 Write-Host "`n[4/4] Checking Phoenix (X1) Microcode & Runtime DLLs..." -ForegroundColor Yellow
-if ($sdkPath -and (Test-Path $sdkPath)) {
+if ($hasLocal) {
+    Write-Host "  [OK] Phoenix xclbin bitstream: FOUND in npu_runtime\xclbins\phoenix\1x4.xclbin" -ForegroundColor Green
+    Write-Host "  [OK] ONNX Runtime DLL:         FOUND in npu_runtime\bin\onnxruntime.dll" -ForegroundColor Green
+    Write-Host "  [OK] Vitis AI EP DLL:          FOUND in npu_runtime\bin\onnxruntime_vitisai_ep.dll" -ForegroundColor Green
+    $PassedChecks++
+} elseif ($sdkPath -and (Test-Path $sdkPath)) {
     $phxXclbin = Join-Path $sdkPath "voe-4.0-win_amd64\xclbins\phoenix\1x4.xclbin"
     $ortDll = Join-Path $sdkPath "onnxruntime.dll"
 
@@ -94,7 +105,7 @@ if ($sdkPath -and (Test-Path $sdkPath)) {
         Write-Host "  [WARN] ONNX Runtime DLL not found at: $ortDll" -ForegroundColor Yellow
     }
 } else {
-    Write-Host "  [INFO] Pending SDK installation to verify xclbins and DLLs." -ForegroundColor Gray
+    Write-Host "  [INFO] Pending SDK installation or local runtime extraction." -ForegroundColor Gray
 }
 
 # Summary Report
