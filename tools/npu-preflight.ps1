@@ -66,7 +66,10 @@ if (-not $sdkPath) {
 }
 
 $localRuntime = Join-Path $PSScriptRoot "..\npu_runtime"
-$hasLocal = (Test-Path "$localRuntime\bin\onnxruntime.dll") -and (Test-Path "$localRuntime\xclbins\phoenix\1x4.xclbin")
+$localNative = Join-Path $localRuntime "ryzen_ai_deployment\runtimes\win-x64\native"
+$localDriver = Join-Path $localRuntime "NPU_RAI_376_WHQL\npu_mcdm_stack_prod"
+
+$hasLocal = (Test-Path "$localNative\onnxruntime.dll") -and (Test-Path "$localDriver\1x4.xclbin")
 
 if ($hasLocal) {
     Write-Host "  [OK] Local NPU Runtime Preserved at: $localRuntime" -ForegroundColor Green
@@ -81,9 +84,10 @@ if ($hasLocal) {
 # Check 4: Phoenix (X1) Microcode & Runtime DLLs
 Write-Host "`n[4/4] Checking Phoenix (X1) Microcode & Runtime DLLs..." -ForegroundColor Yellow
 if ($hasLocal) {
-    Write-Host "  [OK] Phoenix xclbin bitstream: FOUND in npu_runtime\xclbins\phoenix\1x4.xclbin" -ForegroundColor Green
-    Write-Host "  [OK] ONNX Runtime DLL:         FOUND in npu_runtime\bin\onnxruntime.dll" -ForegroundColor Green
-    Write-Host "  [OK] Vitis AI EP DLL:          FOUND in npu_runtime\bin\onnxruntime_vitisai_ep.dll" -ForegroundColor Green
+    Write-Host "  [OK] Phoenix xclbin bitstream: FOUND ($localDriver\1x4.xclbin)" -ForegroundColor Green
+    Write-Host "  [OK] ONNX Runtime DLL:         FOUND ($localNative\onnxruntime.dll)" -ForegroundColor Green
+    Write-Host "  [OK] Vitis AI EP DLL:          FOUND ($localNative\onnxruntime_vitisai_ep.dll)" -ForegroundColor Green
+    Write-Host "  [OK] XRT Monitoring CLI:       FOUND ($localDriver\xrt-smi.exe)" -ForegroundColor Green
     $PassedChecks++
 } elseif ($sdkPath -and (Test-Path $sdkPath)) {
     $phxXclbin = Join-Path $sdkPath "voe-4.0-win_amd64\xclbins\phoenix\1x4.xclbin"
