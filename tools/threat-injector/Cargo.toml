@@ -1,0 +1,15 @@
+[package]
+name = "threat-injector"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+publish = false
+
+[dependencies]
+kavach-core = { path = "../../crates/kavach-core" }
+kavach-tripwire = { path = "../../crates/kavach-tripwire" }
+kavach-beacon = { path = "../../crates/kavach-beacon" }
+kavach-events = { path = "../../crates/kavach-events" }
+kavach-wsl = { path = "../../crates/kavach-wsl" }
+hex = "0.4"
+sha2 = "0.10"

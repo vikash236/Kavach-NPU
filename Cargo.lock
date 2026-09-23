@@ -861,6 +861,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "threat-injector"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "kavach-beacon",
+ "kavach-core",
+ "kavach-events",
+ "kavach-tripwire",
+ "kavach-wsl",
+ "sha2",
+]
+
+[[package]]
 name = "tinytemplate"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

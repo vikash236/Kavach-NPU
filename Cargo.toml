@@ -17,6 +17,7 @@ members = [
     "crates/kavach-wsl-guest",
     "kavach-train",
     "tools/kavach-pack",
+    "tools/threat-injector",
 ]
 resolver = "3"
 
