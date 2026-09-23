@@ -2,6 +2,22 @@
 
 use kavach_core::ArtifactVersion;
 
+pub mod clock_sync;
+pub mod correlator;
+pub mod wire;
+pub use clock_sync::{
+    CLOCK_SYNC_VALIDITY_NS, ClockChallenge, ClockOffsetEstimate, ClockResponse, ClockSyncError,
+    ClockSynchronizer, MAX_ACCEPTABLE_UNCERTAINTY_NS, MAX_RTT_NS,
+};
+pub use correlator::{
+    AttributionConfidence, HostFileEvent, MAX_CORRELATION_WINDOW_MS, WslAttributionResult,
+    WslCorrelator, translate_mnt_to_windows_path,
+};
+pub use wire::{
+    FIXED_HEADER_SIZE, LENGTH_PREFIX_SIZE, MAX_PAYLOAD_SIZE, MIN_PAYLOAD_SIZE,
+    SUPPORTED_VSOCK_MAJOR, VsockWireError, is_normalized_mnt_path,
+};
+
 /// Guest-side file operation encoded in the AF_VSOCK contract governed by ADR 005.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -47,21 +63,6 @@ pub struct GuestWriteRecord {
     pub byte_range_length: u64,
     /// V1 feature flags; all bits are zero until a future compatible minor version defines them.
     pub flags: u16,
-}
-
-/// Measured host-minus-guest clock relation used to bound correlation confidence under ADR 005.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ClockOffsetEstimate {
-    /// Guest-agent session to which the estimate applies.
-    pub distribution_id: [u8; 16],
-    /// Estimated host-minus-guest offset in nanoseconds.
-    pub offset_ns: i64,
-    /// Conservative one-way uncertainty bound in nanoseconds.
-    pub uncertainty_ns: u64,
-    /// Host monotonic timestamp at which the estimate was accepted.
-    pub accepted_at_host_monotonic_ns: u64,
-    /// Host monotonic timestamp after which this estimate is stale.
-    pub valid_until_host_monotonic_ns: u64,
 }
 
 /// Placeholder bridge for confidence-bounded WSL2 attribution defined in ADR 005.
