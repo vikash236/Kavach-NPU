@@ -5,6 +5,10 @@ edition = "2024"
 license = "MIT"
 publish = false
 
+[features]
+default = []
+npu-hardware = ["dep:ort", "dep:ndarray"]
+
 [dependencies]
 ed25519-dalek = { version = "2.1", default-features = false }
 hex = "0.4"
@@ -12,5 +16,14 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sha2 = "0.10"
 toml = "0.8"
+ort = { version = "2.0.0-rc.13", default-features = false, features = ["load-dynamic", "vitis", "directml", "ndarray", "std", "api-27"], optional = true }
+ndarray = { version = "0.16", optional = true }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = [
+    "Win32_Foundation",
+    "Win32_System_LibraryLoader",
+] }
+
 
 

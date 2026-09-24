@@ -21,6 +21,10 @@ members = [
 ]
 resolver = "3"
 
+[features]
+default = []
+npu-hardware = ["kavach-core/npu-hardware"]
+
 [dependencies]
 kavach-core = { path = "crates/kavach-core" }
 kavach-tripwire = { path = "crates/kavach-tripwire" }
