@@ -2,6 +2,7 @@
 
 **Hardware-Enforced Zero-Trust Endpoint Defense & WSL Sentinel Powered by AMD XDNA Silicon.**
 
+[![CI](https://github.com/vikash236/Kavach-NPU/actions/workflows/ci.yml/badge.svg)](https://github.com/vikash236/Kavach-NPU/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Target: AMD XDNA](https://img.shields.io/badge/Hardware-AMD%20XDNA%20(10%20TOPS)-orange.svg)](https://www.amd.com/en/products/processors/laptop/ryzen/7000-series.html)
 [![Language: Rust](https://img.shields.io/badge/Language-Rust%202024-red.svg)](https://www.rust-lang.org/)
