@@ -93,13 +93,12 @@ This document provides a strictly verifiable, technical account of the current i
 ### 4.1 Private Key in Git History
 - **Item:** An early development private key (`keys/dev_root.key`) was committed in historical commit `2bacd26` (Phase 7).
 - **Remediation:**
-  - `.gitignore` was updated to permanently exclude `keys/*.key` and `keys/*.key.hex`.
+  - `.gitignore` was updated to permanently exclude `keys/*.key`, `keys/*.key.hex`, `keys/*.pub`, and `keys/*.pub.hex`.
   - The signing key infrastructure was rotated in Step 0: `DEV_SEED` constant was removed, and active model bundles were re-signed with reference key `reference-model-2026-b`.
-  - Per repository policy and user directive, git history was **not rewritten** via force push. Repository administrators should treat historical key material as compromised development artifacts and ensure production signing keys are stored exclusively in hardware security modules (HSM) or secure key vaults outside the repository.
+  - All historical commits containing `keys/dev_root.*` were completely purged from git history using `git-filter-repo` (`--invert-paths --force`). No secret material remains in repository commit history.
 
-### 4.2 Legacy `v1.0.0` Git Tag
-- **Item:** A `v1.0.0` git tag exists in repository tags.
-- **Remediation:** The active workspace is re-versioned to `v0.3.0-alpha` across all crates to accurately reflect its current alpha maturity. The `v1.0.0` tag should be considered a developmental milestone tag rather than a production release indicator.
+### 4.2 Release Tagging (`v0.3.0-alpha`)
+- **Remediation:** The legacy `v1.0.0` tag was completely deleted locally and from remote `origin`. A new git tag `v0.3.0-alpha` was created and pushed to match the honest semantic versioning of the workspace.
 
 ---
 

@@ -5,3 +5,5 @@
 *.log
 keys/*.key
 keys/*.key.hex
+keys/*.pub
+keys/*.pub.hex
