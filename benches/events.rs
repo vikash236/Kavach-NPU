@@ -91,6 +91,22 @@ fn bench_events(c: &mut Criterion) {
         });
     });
 
+    #[cfg(feature = "npu-hardware")]
+    {
+        let info = kavach_core::npu_backend::NpuHardwareInfo::probe();
+        if let Ok(ort_session) =
+            kavach_core::npu_backend::OrtBackendSession::from_reference_model(&info)
+        {
+            group.bench_function("npu_hardware_audit_direct_dispatch", |b| {
+                b.iter(|| {
+                    ort_session
+                        .run_audit_inference(black_box(&audit_tensor.data))
+                        .unwrap();
+                });
+            });
+        }
+    }
+
     group.finish();
 }
 
