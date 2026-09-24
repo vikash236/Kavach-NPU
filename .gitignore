@@ -1,4 +1,5 @@
 /target/
 /npu_runtime/
 /test-canary/
+/dist/
 *.log
