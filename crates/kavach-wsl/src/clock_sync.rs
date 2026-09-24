@@ -231,4 +231,108 @@ mod tests {
             .unwrap_err();
         assert!(matches!(err, ClockSyncError::RttTooHigh { .. }));
     }
+
+    #[test]
+    fn test_nonce_mismatch_rejected() {
+        let mut sync = ClockSynchronizer::new([0; 16]);
+        let challenge = ClockChallenge {
+            nonce: [0x11; 16],
+            t0_host_monotonic_ns: 1_000_000_000,
+        };
+        let response = ClockResponse {
+            nonce: [0x22; 16],
+            g1_guest_monotonic_ns: 1_000_000_000,
+            g2_guest_monotonic_ns: 1_000_000_000,
+        };
+        let err = sync
+            .process_response(&challenge, &response, 1_010_000_000)
+            .unwrap_err();
+        assert_eq!(err, ClockSyncError::NonceMismatch);
+    }
+
+    #[test]
+    fn test_non_monotonic_host_timestamps_rejected() {
+        let mut sync = ClockSynchronizer::new([0; 16]);
+        let challenge = ClockChallenge {
+            nonce: [0x11; 16],
+            t0_host_monotonic_ns: 1_000_000_000,
+        };
+        let response = ClockResponse {
+            nonce: [0x11; 16],
+            g1_guest_monotonic_ns: 1_000_000_000,
+            g2_guest_monotonic_ns: 1_000_000_000,
+        };
+        let err = sync
+            .process_response(&challenge, &response, 1_000_000_000)
+            .unwrap_err();
+        assert_eq!(err, ClockSyncError::NonMonotonicTimestamps);
+    }
+
+    #[test]
+    fn test_non_monotonic_guest_timestamps_rejected() {
+        let mut sync = ClockSynchronizer::new([0; 16]);
+        let challenge = ClockChallenge {
+            nonce: [0x11; 16],
+            t0_host_monotonic_ns: 1_000_000_000,
+        };
+        let response = ClockResponse {
+            nonce: [0x11; 16],
+            g1_guest_monotonic_ns: 1_000_000_000,
+            g2_guest_monotonic_ns: 999_999_999,
+        };
+        let err = sync
+            .process_response(&challenge, &response, 1_010_000_000)
+            .unwrap_err();
+        assert_eq!(err, ClockSyncError::NonMonotonicTimestamps);
+    }
+
+    #[test]
+    fn test_consecutive_failures_invalidate_estimate() {
+        let mut sync = ClockSynchronizer::new([0x33; 16]);
+        let challenge = ClockChallenge {
+            nonce: [0x11; 16],
+            t0_host_monotonic_ns: 1_000_000_000,
+        };
+        let response = ClockResponse {
+            nonce: [0x11; 16],
+            g1_guest_monotonic_ns: 504_000_000,
+            g2_guest_monotonic_ns: 506_000_000,
+        };
+        sync.process_response(&challenge, &response, 1_010_000_000)
+            .expect("success");
+        assert!(sync.get_valid_estimate(1_020_000_000).is_some());
+
+        let bad_response = ClockResponse {
+            nonce: [0x99; 16],
+            g1_guest_monotonic_ns: 504_000_000,
+            g2_guest_monotonic_ns: 506_000_000,
+        };
+        for _ in 0..3 {
+            let _ = sync.process_response(&challenge, &bad_response, 1_020_000_000);
+        }
+
+        assert!(sync.get_valid_estimate(1_020_000_000).is_none());
+    }
+
+    #[test]
+    fn test_five_sample_rolling_buffer() {
+        let mut sync = ClockSynchronizer::new([0x44; 16]);
+        for i in 0..6 {
+            let base = 1_000_000_000 + i * 100_000_000;
+            let challenge = ClockChallenge {
+                nonce: [i as u8; 16],
+                t0_host_monotonic_ns: base,
+            };
+            let response = ClockResponse {
+                nonce: [i as u8; 16],
+                g1_guest_monotonic_ns: 500_000_000 + i * 100_000_000,
+                g2_guest_monotonic_ns: 500_000_000 + i * 100_000_000 + 2_000_000,
+            };
+            let est = sync
+                .process_response(&challenge, &response, base + 10_000_000)
+                .expect("success");
+            assert!(est.uncertainty_ns <= 10_000_000);
+        }
+        assert!(sync.get_valid_estimate(1_600_000_000).is_some());
+    }
 }

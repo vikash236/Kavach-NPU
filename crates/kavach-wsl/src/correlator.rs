@@ -279,4 +279,52 @@ mod tests {
             "must disallow PID enforcement on low confidence"
         );
     }
+
+    #[test]
+    fn test_no_matching_host_event_yields_low_confidence() {
+        let distro_id = [0x99; 16];
+        let mut correlator = WslCorrelator::new(distro_id, 250);
+
+        let challenge = ClockChallenge {
+            nonce: [0xbb; 16],
+            t0_host_monotonic_ns: 1_000_000_000,
+        };
+        let response = ClockResponse {
+            nonce: [0xbb; 16],
+            g1_guest_monotonic_ns: 1_000_000_000,
+            g2_guest_monotonic_ns: 1_000_000_000,
+        };
+        correlator
+            .clock_sync_mut()
+            .process_response(&challenge, &response, 1_005_000_000)
+            .unwrap();
+
+        let guest_rec = GuestWriteRecord {
+            version: ArtifactVersion { major: 1, minor: 0 },
+            sequence_number: 1,
+            guest_monotonic_ns: 1_000_000_000,
+            guest_realtime_ns: 0,
+            guest_process_id: 1234,
+            guest_process_start_ticks: 100,
+            distribution_id: distro_id,
+            mount_namespace_id: 1,
+            executable_sha256: [0; 32],
+            cgroup_sha256: [0; 32],
+            operation: GuestFileOperation::Write,
+            normalized_path: "/mnt/c/unmatched.txt".into(),
+            byte_range_start: 0,
+            byte_range_length: 512,
+            flags: 0,
+        };
+
+        let result = correlator.correlate_guest_record(guest_rec, 1_010_000_000);
+        assert_eq!(result.confidence, AttributionConfidence::Low);
+        assert!(!result.allow_pid_enforcement);
+    }
+
+    #[test]
+    fn test_correlation_window_capped_at_maximum() {
+        let correlator = WslCorrelator::new([0; 16], 999);
+        assert_eq!(correlator.correlation_window_ms, MAX_CORRELATION_WINDOW_MS);
+    }
 }
