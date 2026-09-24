@@ -176,6 +176,90 @@ pub fn run_tripwire_test(path_arg: Option<&str>) -> Result<(), String> {
     Ok(())
 }
 
+/// Probes AMD XDNA NPU hardware, drivers, execution providers, and runs a live inference smoke test.
+pub fn run_npu_check() {
+    println!("=== Kavach-NPU Hardware & Runtime Probe ===");
+    let hw = kavach_core::NpuHardwareInfo::probe();
+    println!(
+        "  Hardware Device Detected: {}",
+        if hw.device_detected {
+            "YES (PCI VEN_1022 DEV_1502 - AMD IPU)"
+        } else {
+            "NO"
+        }
+    );
+    println!(
+        "  NPU Driver Version:       {}",
+        hw.driver_version.as_deref().unwrap_or("NOT DETECTED")
+    );
+    println!(
+        "  Runtime Bin Directory:    {}",
+        hw.runtime_bin_dir
+            .as_ref()
+            .map(|p| p.display().to_string())
+            .unwrap_or_else(|| "MISSING".to_string())
+    );
+    println!(
+        "  Phoenix xclbin Bitstream: {}",
+        hw.xclbin_path
+            .as_ref()
+            .map(|p| p.display().to_string())
+            .unwrap_or_else(|| "MISSING".to_string())
+    );
+
+    let engine = kavach_core::npu_backend::NpuEngine::with_reference_model();
+    println!("  Active Execution Engine:  {}", engine.active_backend());
+
+    #[cfg(feature = "npu-hardware")]
+    if let Some(session) = engine.ort_session() {
+        println!(
+            "  ONNX Runtime Provider:    {} (Direct hardware dispatch active)",
+            session.backend()
+        );
+    } else {
+        println!("  ONNX Runtime Provider:    Native SIMD Fallback Scorer");
+    }
+    #[cfg(not(feature = "npu-hardware"))]
+    println!(
+        "  ONNX Runtime Provider:    Pure Rust Baseline (build with --features npu-hardware for DirectML/NPU)"
+    );
+
+    println!("-------------------------------------------");
+    println!("Running Live Inference Smoke Test (3 Heads)...");
+
+    // 1. Head 1 (I/O)
+    let sample_io = [[64i8, 20, 10, 30]; 10];
+    let t0 = std::time::Instant::now();
+    let score_io = engine.run_io_inference(&sample_io);
+    let dur_io = t0.elapsed();
+    println!(
+        "  [+] Head 1 (Tripwire I/O Autoencoder):     score={:.4}, latency={:?}",
+        score_io, dur_io
+    );
+
+    // 2. Head 2 (Net)
+    let sample_net = [[50i8, 10, 0, 0]; 32];
+    let t1 = std::time::Instant::now();
+    let score_net = engine.run_net_inference(&sample_net);
+    let dur_net = t1.elapsed();
+    println!(
+        "  [+] Head 2 (Beacon C2 Network TCN):        score={:.4}, latency={:?}",
+        score_net, dur_net
+    );
+
+    // 3. Head 3 (Audit)
+    let sample_audit = [[45i8, 5, 0, 0]; 16];
+    let t2 = std::time::Instant::now();
+    let score_audit = engine.run_audit_inference(&sample_audit);
+    let dur_audit = t2.elapsed();
+    println!(
+        "  [+] Head 3 (Event Sequence Embedding):      score={:.4}, latency={:?}",
+        score_audit, dur_audit
+    );
+
+    println!("===========================================");
+}
+
 /// Executes the mock/lab WSL2 AF_VSOCK bridge simulation.
 pub fn run_wsl_lab_mode() {
     println!("===========================================================");
@@ -558,36 +642,7 @@ fn main() {
             println!("{}", status);
         }
         "npu-check" => {
-            println!("=== Kavach-NPU Hardware & Runtime Probe ===");
-            let hw = kavach_core::NpuHardwareInfo::probe();
-            println!(
-                "  Hardware Device Detected: {}",
-                if hw.device_detected {
-                    "YES (PCI VEN_1022 DEV_1502)"
-                } else {
-                    "NO"
-                }
-            );
-            println!(
-                "  NPU Driver Version:       {}",
-                hw.driver_version.as_deref().unwrap_or("NOT DETECTED")
-            );
-            println!(
-                "  Runtime Bin Directory:    {}",
-                hw.runtime_bin_dir
-                    .as_ref()
-                    .map(|p| p.display().to_string())
-                    .unwrap_or_else(|| "MISSING".to_string())
-            );
-            println!(
-                "  Phoenix xclbin Bitstream: {}",
-                hw.xclbin_path
-                    .as_ref()
-                    .map(|p| p.display().to_string())
-                    .unwrap_or_else(|| "MISSING".to_string())
-            );
-            println!("  Selected Backend:         {}", hw.selected_backend);
-            println!("===========================================");
+            run_npu_check();
         }
         "tripwire" => {
             let path_arg = if args.len() > 3 && args[2] == "--test" {
@@ -768,5 +823,10 @@ mod tests {
     fn test_live_daemon_execution() {
         let config = KavachConfig::safe_defaults();
         run_live_sentinel_daemon(&config);
+    }
+
+    #[test]
+    fn test_npu_check_execution() {
+        run_npu_check();
     }
 }

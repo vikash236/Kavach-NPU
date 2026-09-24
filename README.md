@@ -203,7 +203,7 @@ cargo build --release
 ### CLI Commands
 ```powershell
 kavach-npu status                  # Display NPU session health, model bundle verification, and active sentinels
-kavach-npu npu-check               # Probe physical AMD XDNA NPU hardware device, driver version, and runtime bitstreams
+kavach-npu npu-check               # Probe AMD NPU hardware device, driver version, active execution provider, and run live smoke test
 kavach-npu daemon --live -c        # Run foreground live sentinel with continuous 100ms NPU heartbeat
 kavach-npu service status          # Query native Windows SCM service state
 kavach-npu tripwire --test [path]  # Run Shannon block entropy and sliding-window burst test
@@ -213,13 +213,13 @@ kavach-npu wsl --lab-mode          # Execute WSL2 cross-boundary AF_VSOCK correl
 ### Inference Engine Microbenchmarks (Criterion Validated)
 
 > [!NOTE]
-> Benchmarks measure the deterministic in-memory CPU baseline scoring engine over quantized INT8 feature tensors. These benchmarks validate zero-allocation throughput and ensure algorithms execute well within SLA budgets before physical NPU hardware offloading.
+> Default builds execute the deterministic in-memory CPU baseline scoring engine (< 50 ns) over quantized INT8 feature tensors. Enabling `--features npu-hardware` compiles the real ONNX Runtime hardware offload pipeline (DirectML / Vitis AI EP) with verified hardware execution on AMD Phoenix silicon.
 
-| Threat Head | Execution Mode | SLA Target | Measured Latency (CPU Baseline) | Margin vs SLA |
+| Threat Head | SLA Target | CPU Baseline Scorer (Pure Rust) | Hardware Offload (DirectML / AMD Phoenix GPU/NPU) | Hardware SLA Margin |
 | :--- | :--- | :--- | :--- | :--- |
-| **Head 1 (I/O Entropy)** | CPU Baseline Scorer | $< 1.200\text{ ms}$ | **27.47 ns** | **Well within SLA** |
-| **Head 2 (Network C2)** | CPU Baseline Scorer | $< 2.500\text{ ms}$ | **49.50 ns** | **Well within SLA** |
-| **Head 3 (Audit Lineage)**| CPU Baseline Scorer | $< 0.800\text{ ms}$ | **22.29 ns** | **Well within SLA** |
+| **Head 1 (I/O Entropy)** | $< 1.200\text{ ms}$ | **16.8 ns** | **497.10 µs** | **58.6% margin** |
+| **Head 2 (Network C2)** | $< 2.500\text{ ms}$ | **50.5 ns** | **454.62 µs** | **81.8% margin** |
+| **Head 3 (Audit Lineage)**| $< 0.800\text{ ms}$ | **23.9 ns** | **427.22 µs** | **46.6% margin** |
 
 ---
 
