@@ -26,6 +26,8 @@ use std::fs;
 use std::net::{IpAddr, Ipv4Addr};
 use std::path::Path;
 
+pub mod service;
+
 /// Status report formatted according to ADR 004 and docs/schemas/model-manifest-v1.md.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SystemStatusReport {
@@ -507,6 +509,7 @@ SUBCOMMANDS:
     tripwire --test [PATH]  Run Shannon block entropy and sliding-window burst test
     wsl --lab-mode          Run WSL2 AF_VSOCK correlation challenge-response simulation
     daemon [--live] [--continuous]  Start the sentinel runtime daemon (--live for real ETW/WFP, -c for continuous)
+    service <ACTION>                Manage Windows Service (install, uninstall, start, stop, status, run)
     --help, -h                      Print this help information
 "#
     );
@@ -566,6 +569,84 @@ fn main() {
                 run_live_sentinel_daemon(&config);
             } else {
                 run_sentinel_daemon(&config);
+            }
+        }
+        "service" => {
+            if args.len() < 3 {
+                eprintln!("Usage: kavach-npu service <install|uninstall|start|stop|status|run> [options]");
+                std::process::exit(1);
+            }
+            match args[2].as_str() {
+                "install" => {
+                    let bin_path = if args.len() > 4 && args[3] == "--path" {
+                        Some(args[4].as_str())
+                    } else if args.len() > 3 && !args[3].starts_with('-') {
+                        Some(args[3].as_str())
+                    } else {
+                        None
+                    };
+                    match service::manager::install_service(bin_path) {
+                        Ok(msg) => println!("{}", msg),
+                        Err(e) => {
+                            eprintln!("Error installing service: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                }
+                "uninstall" => {
+                    match service::manager::uninstall_service() {
+                        Ok(msg) => println!("{}", msg),
+                        Err(e) => {
+                            eprintln!("Error uninstalling service: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                }
+                "start" => {
+                    match service::manager::start_service() {
+                        Ok(msg) => println!("{}", msg),
+                        Err(e) => {
+                            eprintln!("Error starting service: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                }
+                "stop" => {
+                    match service::manager::stop_service() {
+                        Ok(msg) => println!("{}", msg),
+                        Err(e) => {
+                            eprintln!("Error stopping service: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                }
+                "status" => {
+                    match service::manager::query_status() {
+                        Ok(status) => println!("=== Service Status ===\n{}", status),
+                        Err(e) => {
+                            eprintln!("Error querying service status: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                }
+                "run" => {
+                    #[cfg(windows)]
+                    {
+                        if let Err(e) = service::win_service::run_service_dispatcher() {
+                            eprintln!("Service dispatcher error: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                    #[cfg(not(windows))]
+                    {
+                        eprintln!("Windows Service dispatcher is only supported on Windows.");
+                        std::process::exit(1);
+                    }
+                }
+                other => {
+                    eprintln!("Unknown service action: {}. Expected install, uninstall, start, stop, status, or run.", other);
+                    std::process::exit(1);
+                }
             }
         }
         "--help" | "-h" | "help" => {

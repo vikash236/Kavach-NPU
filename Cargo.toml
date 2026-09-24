@@ -32,6 +32,12 @@ hex = "0.4"
 
 [target.'cfg(windows)'.dependencies]
 kavach-sensors = { path = "crates/kavach-sensors" }
+windows-sys = { version = "0.59", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_System_Services",
+    "Win32_System_Threading",
+] }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }

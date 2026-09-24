@@ -474,6 +474,7 @@ dependencies = [
  "kavach-sensors",
  "kavach-tripwire",
  "kavach-wsl",
+ "windows-sys",
 ]
 
 [[package]]
