@@ -1,2 +1,4 @@
 /target/
 /npu_runtime/
+/test-canary/
+*.log
