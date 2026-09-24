@@ -2,9 +2,7 @@
 
 use kavach_core::tensor::{IoInputTensor, QuantizationParams};
 use kavach_core::wire::VERDICT_WIRE_SIZE;
-use kavach_core::{
-    EnforcementAction, KavachConfig, NpuSession, Verdict, VerdictDispatcher,
-};
+use kavach_core::{EnforcementAction, KavachConfig, NpuSession, Verdict, VerdictDispatcher};
 use kavach_firewall::EnforcementBroker;
 use kavach_tripwire::EntropyEngine;
 use std::sync::{Arc, Mutex};
@@ -74,7 +72,9 @@ fn test_live_threat_detection_and_broker_containment_pipeline() {
     // 4. Extract feature tensor matrix and evaluate on NPU
     let tensor_matrix = entropy_engine.tracker().build_tensor_matrix();
     let io_tensor = IoInputTensor::from_f32_matrix(&tensor_matrix, QuantizationParams::default());
-    let anomaly_score = npu_session.evaluate_io_head(&io_tensor).expect("inference succeeds");
+    let anomaly_score = npu_session
+        .evaluate_io_head(&io_tensor)
+        .expect("inference succeeds");
 
     println!("Simulated Ransomware Anomaly Score: {:.4}", anomaly_score);
     assert!(
@@ -101,7 +101,10 @@ fn test_live_threat_detection_and_broker_containment_pipeline() {
     };
 
     let dispatch_res = dispatcher.dispatch(&verdict);
-    assert!(dispatch_res.is_ok(), "Broker must accept and enforce valid verdict");
+    assert!(
+        dispatch_res.is_ok(),
+        "Broker must accept and enforce valid verdict"
+    );
 
     // 6. Verify replay protection: identical request_id must be rejected
     let replay_res = dispatcher.dispatch(&verdict);

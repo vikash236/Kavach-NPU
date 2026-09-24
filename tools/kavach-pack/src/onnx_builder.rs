@@ -144,14 +144,14 @@ pub fn generate_kavach_stub_onnx(opset: i64) -> Vec<u8> {
         &["io_input"],
         &["io_float"],
         "node_io_cast",
-        &[cast_to_float.clone()],
+        std::slice::from_ref(&cast_to_float),
     );
     let node_io_reduce = build_node(
         "ReduceMean",
         &["io_float"],
         &["io_score"],
         "node_io_reduce",
-        &[keepdims.clone()],
+        std::slice::from_ref(&keepdims),
     );
 
     // Head 2: Cast(net_input: INT8 -> FLOAT) -> net_float -> ReduceMean -> net_score
@@ -160,14 +160,14 @@ pub fn generate_kavach_stub_onnx(opset: i64) -> Vec<u8> {
         &["net_input"],
         &["net_float"],
         "node_net_cast",
-        &[cast_to_float.clone()],
+        std::slice::from_ref(&cast_to_float),
     );
     let node_net_reduce = build_node(
         "ReduceMean",
         &["net_float"],
         &["net_score"],
         "node_net_reduce",
-        &[keepdims.clone()],
+        std::slice::from_ref(&keepdims),
     );
 
     // Head 3: Cast(audit_input: INT8 -> FLOAT) -> audit_float -> ReduceMean -> audit_score
@@ -224,6 +224,9 @@ mod tests {
         // Verify protobuf header (field 1, varint 9 -> tag: 0x08, val: 0x09)
         assert_eq!(bytes[0], 0x08);
         assert_eq!(bytes[1], 0x09);
-        assert!(bytes.len() > 200, "ONNX graph with nodes must have substantial byte size");
+        assert!(
+            bytes.len() > 200,
+            "ONNX graph with nodes must have substantial byte size"
+        );
     }
 }

@@ -33,7 +33,9 @@ impl GuestAuditSource {
         byte_range_length: u64,
     ) -> Result<GuestWriteRecord, String> {
         if !is_normalized_mnt_path(normalized_path) {
-            return Err(format!("path '{normalized_path}' is not a normalized /mnt/<drive>/ path"));
+            return Err(format!(
+                "path '{normalized_path}' is not a normalized /mnt/<drive>/ path"
+            ));
         }
 
         let seq = self.sequence_counter;

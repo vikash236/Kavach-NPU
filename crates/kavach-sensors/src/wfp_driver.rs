@@ -31,11 +31,7 @@ impl WfpDriver {
     }
 
     /// Injects an outbound IP/port quarantine rule into WFP.
-    pub fn add_quarantine(
-        &mut self,
-        target: QuarantineTarget,
-        now_ms: u64,
-    ) -> Result<u64, String> {
+    pub fn add_quarantine(&mut self, target: QuarantineTarget, now_ms: u64) -> Result<u64, String> {
         let rule_id = self.registry.add_quarantine_rule(target, now_ms);
         self.active_filter_ids.insert(rule_id);
         Ok(rule_id)
@@ -71,7 +67,9 @@ impl WfpDriver {
                 }
 
                 let ntdll_name: Vec<u16> = "ntdll.dll\0".encode_utf16().collect();
-                let h_ntdll = windows_sys::Win32::System::LibraryLoader::GetModuleHandleW(ntdll_name.as_ptr());
+                let h_ntdll = windows_sys::Win32::System::LibraryLoader::GetModuleHandleW(
+                    ntdll_name.as_ptr(),
+                );
                 if h_ntdll.is_null() {
                     CloseHandle(h_process);
                     return Err("Failed to obtain ntdll.dll handle".to_string());

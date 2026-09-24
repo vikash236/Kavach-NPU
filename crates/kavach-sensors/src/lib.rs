@@ -20,8 +20,8 @@ mod tests {
         ArtifactVersion, DispatchError, EnforcementAction, Verdict, VerdictDispatcher,
     };
     use kavach_events::{CriticalEventId, EventSubscriber, SecurityEventRecord};
-    use kavach_firewall::rule::QuarantineTarget;
     use kavach_firewall::EnforcementBroker;
+    use kavach_firewall::rule::QuarantineTarget;
     use kavach_tripwire::EntropyEngine;
     use std::net::{IpAddr, Ipv4Addr};
     use std::sync::{Arc, Mutex};
@@ -51,16 +51,19 @@ mod tests {
                 timestamp_unix_ms: 1_700_000_000_000 + i * 10,
             };
 
-            if let Some(burst) = consumer.process_event(event) {
-                if burst.recommended_action == EnforcementAction::SuspendAndAlert {
-                    alert_fired = true;
-                    assert_eq!(burst.pid, pid);
-                    break;
-                }
+            if let Some(burst) = consumer.process_event(event)
+                && burst.recommended_action == EnforcementAction::SuspendAndAlert
+            {
+                alert_fired = true;
+                assert_eq!(burst.pid, pid);
+                break;
             }
         }
 
-        assert!(alert_fired, "Ransomware burst should trigger SuspendAndAlert");
+        assert!(
+            alert_fired,
+            "Ransomware burst should trigger SuspendAndAlert"
+        );
     }
 
     #[test]
@@ -85,15 +88,18 @@ mod tests {
                 direction: PacketDirection::Outbound,
                 timestamp_ns: (i as u64) * 1_000_000_000,
             };
-            if let Some(res) = consumer.process_packet(event) {
-                if res.is_c2_beacon {
-                    beacon_detected = true;
-                    assert!(res.coefficient_of_variation <= 0.35);
-                }
+            if let Some(res) = consumer.process_packet(event)
+                && res.is_c2_beacon
+            {
+                beacon_detected = true;
+                assert!(res.coefficient_of_variation <= 0.35);
             }
         }
 
-        assert!(beacon_detected, "Periodic packets must be detected as C2 beacon");
+        assert!(
+            beacon_detected,
+            "Periodic packets must be detected as C2 beacon"
+        );
     }
 
     #[test]
@@ -111,7 +117,10 @@ mod tests {
         };
 
         let alert = consumer.process_event(record).expect("alert expected");
-        assert_eq!(alert.pattern, kavach_events::CorrelationPattern::AuditLogTampering);
+        assert_eq!(
+            alert.pattern,
+            kavach_events::CorrelationPattern::AuditLogTampering
+        );
     }
 
     #[test]
@@ -127,21 +136,21 @@ mod tests {
             protocol: 6,
         };
 
-        let filter_id = driver.add_quarantine(target, 1_700_000_000_000).expect("add quarantine");
+        let filter_id = driver
+            .add_quarantine(target, 1_700_000_000_000)
+            .expect("add quarantine");
         assert_eq!(driver.active_filter_count(), 1);
 
-        driver.remove_quarantine(filter_id).expect("remove quarantine");
+        driver
+            .remove_quarantine(filter_id)
+            .expect("remove quarantine");
         assert_eq!(driver.active_filter_count(), 0);
     }
 
     #[test]
     fn test_pipe_broker_dispatch_and_replay_protection() {
         let broker = Arc::new(Mutex::new(EnforcementBroker::new(
-            1,
-            true,
-            2,
-            [0x77; 32],
-            false,
+            1, true, 2, [0x77; 32], false,
         )));
 
         let dispatcher = PipeVerdictDispatcher::with_in_memory_broker(broker.clone());

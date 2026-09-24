@@ -188,9 +188,7 @@ impl NpuSession {
             NpuState::DegradedObserver { reason, .. } => {
                 Err(NpuError::DegradedObserver(reason.clone()))
             }
-            NpuState::Active { .. } => {
-                Ok(self.engine.run_io_inference(&input.data))
-            }
+            NpuState::Active { .. } => Ok(self.engine.run_io_inference(&input.data)),
         }
     }
 
@@ -200,9 +198,7 @@ impl NpuSession {
             NpuState::DegradedObserver { reason, .. } => {
                 Err(NpuError::DegradedObserver(reason.clone()))
             }
-            NpuState::Active { .. } => {
-                Ok(self.engine.run_net_inference(&input.data))
-            }
+            NpuState::Active { .. } => Ok(self.engine.run_net_inference(&input.data)),
         }
     }
 
@@ -212,9 +208,7 @@ impl NpuSession {
             NpuState::DegradedObserver { reason, .. } => {
                 Err(NpuError::DegradedObserver(reason.clone()))
             }
-            NpuState::Active { .. } => {
-                Ok(self.engine.run_audit_inference(&input.data))
-            }
+            NpuState::Active { .. } => Ok(self.engine.run_audit_inference(&input.data)),
         }
     }
 }

@@ -11,10 +11,7 @@ pub fn get_guest_monotonic_ns(start_instant: &Instant) -> u64 {
 /// Generates a valid ClockResponse adhering to ADR 005 protocol:
 /// - g1 sampled upon challenge receipt
 /// - g2 sampled immediately before response transmission
-pub fn respond_to_challenge(
-    challenge: &ClockChallenge,
-    start_instant: &Instant,
-) -> ClockResponse {
+pub fn respond_to_challenge(challenge: &ClockChallenge, start_instant: &Instant) -> ClockResponse {
     let g1 = get_guest_monotonic_ns(start_instant);
     // Minimal processing delta
     let g2 = get_guest_monotonic_ns(start_instant);

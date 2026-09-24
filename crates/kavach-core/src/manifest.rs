@@ -129,11 +129,19 @@ pub fn decode_base64(input: &str) -> Result<Vec<u8>, String> {
 /// Encodes bytes to standard base64 string.
 pub fn encode_base64(bytes: &[u8]) -> String {
     const B64: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let mut s = String::with_capacity((bytes.len() + 2) / 3 * 4);
+    let mut s = String::with_capacity(bytes.len().div_ceil(3) * 4);
     for chunk in bytes.chunks(3) {
         let b0 = chunk[0] as usize;
-        let b1 = if chunk.len() > 1 { chunk[1] as usize } else { 0 };
-        let b2 = if chunk.len() > 2 { chunk[2] as usize } else { 0 };
+        let b1 = if chunk.len() > 1 {
+            chunk[1] as usize
+        } else {
+            0
+        };
+        let b2 = if chunk.len() > 2 {
+            chunk[2] as usize
+        } else {
+            0
+        };
         let triple = (b0 << 16) | (b1 << 8) | b2;
         s.push(B64[(triple >> 18) & 0x3f] as char);
         s.push(B64[(triple >> 12) & 0x3f] as char);

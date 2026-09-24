@@ -44,7 +44,6 @@ SUBCOMMANDS:
     );
 }
 
-
 /// Generates a high-entropy pseudo-random block simulating AES/ChaCha20 ciphertext.
 fn generate_ciphertext_block(size: usize, seed: u32) -> Vec<u8> {
     let mut state = seed;
@@ -67,11 +66,22 @@ fn generate_plaintext_block(size: usize) -> Vec<u8> {
     buf
 }
 
-pub fn run_ransomware_simulation(target_dir: &Path, file_count: usize, intermittent: bool) -> Result<(), String> {
+pub fn run_ransomware_simulation(
+    target_dir: &Path,
+    file_count: usize,
+    intermittent: bool,
+) -> Result<(), String> {
     println!("=== Simulating Ransomware Encryption Burst ===");
     println!("  Target Directory: {}", target_dir.display());
     println!("  File Count:       {}", file_count);
-    println!("  Mode:             {}", if intermittent { "Intermittent (alternating high/low blocks)" } else { "Full Encryption" });
+    println!(
+        "  Mode:             {}",
+        if intermittent {
+            "Intermittent (alternating high/low blocks)"
+        } else {
+            "Full Encryption"
+        }
+    );
 
     fs::create_dir_all(target_dir).map_err(|e| format!("create dir: {e}"))?;
 
@@ -85,12 +95,20 @@ pub fn run_ransomware_simulation(target_dir: &Path, file_count: usize, intermitt
                 file_content.extend_from_slice(&generate_plaintext_block(4096));
             } else {
                 // Encrypted block
-                file_content.extend_from_slice(&generate_ciphertext_block(4096, 0x1337 + (i * 10 + b) as u32));
+                file_content.extend_from_slice(&generate_ciphertext_block(
+                    4096,
+                    0x1337 + (i * 10 + b) as u32,
+                ));
             }
         }
 
-        fs::write(&file_path, &file_content).map_err(|e| format!("write {}: {e}", file_path.display()))?;
-        println!("  [+] Encrypted: {} ({} bytes)", file_path.display(), file_content.len());
+        fs::write(&file_path, &file_content)
+            .map_err(|e| format!("write {}: {e}", file_path.display()))?;
+        println!(
+            "  [+] Encrypted: {} ({} bytes)",
+            file_path.display(),
+            file_content.len()
+        );
         thread::sleep(Duration::from_millis(5));
     }
 
@@ -98,11 +116,18 @@ pub fn run_ransomware_simulation(target_dir: &Path, file_count: usize, intermitt
     Ok(())
 }
 
-pub fn run_c2_simulation(packet_count: usize, interval_ms: u64, jitter_pct: u32) -> Result<(), String> {
+pub fn run_c2_simulation(
+    packet_count: usize,
+    interval_ms: u64,
+    jitter_pct: u32,
+) -> Result<(), String> {
     println!("=== Simulating C2 Rhythmic Network Beaconing ===");
     println!("  Pulse Count:       {}", packet_count);
     println!("  Nominal Interval:  {} ms", interval_ms);
-    println!("  Target Jitter CV:  < 0.35 (simulated {}% variance)", jitter_pct);
+    println!(
+        "  Target Jitter CV:  < 0.35 (simulated {}% variance)",
+        jitter_pct
+    );
 
     let mut state: u32 = 0x5EED;
     for i in 1..=packet_count {
@@ -110,7 +135,10 @@ pub fn run_c2_simulation(packet_count: usize, interval_ms: u64, jitter_pct: u32)
         let jitter_factor = ((state % (jitter_pct * 2 + 1)) as f32 - (jitter_pct as f32)) / 100.0;
         let sleep_ms = ((interval_ms as f32) * (1.0 + jitter_factor)).max(10.0) as u64;
 
-        println!("  [Pulse {:02}/{}] Outbound C2 beacon -> 198.51.100.10:443 (sleeping {} ms)", i, packet_count, sleep_ms);
+        println!(
+            "  [Pulse {:02}/{}] Outbound C2 beacon -> 198.51.100.10:443 (sleeping {} ms)",
+            i, packet_count, sleep_ms
+        );
         thread::sleep(Duration::from_millis(sleep_ms));
     }
 
@@ -124,13 +152,22 @@ pub fn run_audit_simulation(failed_count: usize) -> Result<(), String> {
     println!("  Follow-up Action:  LogonSuccess -> LSASS Access");
 
     for i in 1..=failed_count {
-        println!("  [Event {:02}] EventID 4625 (LogonFailure) user='Administrator' workstation='WORKSTATION'", i);
+        println!(
+            "  [Event {:02}] EventID 4625 (LogonFailure) user='Administrator' workstation='WORKSTATION'",
+            i
+        );
         thread::sleep(Duration::from_millis(20));
     }
 
-    println!("  [Event {:02}] EventID 4624 (LogonSuccess) user='Administrator' (Elevated)", failed_count + 1);
+    println!(
+        "  [Event {:02}] EventID 4624 (LogonSuccess) user='Administrator' (Elevated)",
+        failed_count + 1
+    );
     thread::sleep(Duration::from_millis(20));
-    println!("  [Event {:02}] EventID 4672 (SpecialPrivilegesAssigned) user='Administrator'", failed_count + 2);
+    println!(
+        "  [Event {:02}] EventID 4672 (SpecialPrivilegesAssigned) user='Administrator'",
+        failed_count + 2
+    );
 
     println!("[OK] Credential elevation simulation completed.");
     Ok(())
@@ -200,9 +237,10 @@ fn main() {
             run_c2_simulation(packets, interval, jitter)
         }
         "audit" => {
-            let count: usize = parse_arg_aliases(&args, &["--events", "--iterations", "--count", "-e"])
-                .and_then(|s| s.parse().ok())
-                .unwrap_or(5);
+            let count: usize =
+                parse_arg_aliases(&args, &["--events", "--iterations", "--count", "-e"])
+                    .and_then(|s| s.parse().ok())
+                    .unwrap_or(5);
             run_audit_simulation(count)
         }
         "full-scenario" => run_full_scenario(),

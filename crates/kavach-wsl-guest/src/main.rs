@@ -8,8 +8,8 @@ pub mod vsock;
 
 use audit_source::GuestAuditSource;
 use clock_sync::respond_to_challenge;
-use kavach_wsl::clock_sync::ClockChallenge;
 use kavach_wsl::GuestFileOperation;
+use kavach_wsl::clock_sync::ClockChallenge;
 use std::env;
 use std::time::Instant;
 use vsock::{DEFAULT_VSOCK_PORT, VMADDR_CID_HOST, prepare_wire_frame};
@@ -87,12 +87,18 @@ fn main() {
         ) {
             Ok(record) => {
                 let frame = prepare_wire_frame(&record).expect("frame prep");
-                println!("[OK] Wire frame created successfully ({} bytes):", frame.len());
+                println!(
+                    "[OK] Wire frame created successfully ({} bytes):",
+                    frame.len()
+                );
                 println!("  Sequence:  {}", record.sequence_number);
                 println!("  Guest PID: {}", record.guest_process_id);
                 println!("  Operation: {:?}", record.operation);
                 println!("  Path:      {}", record.normalized_path);
-                println!("  Hex:       {}", hex::encode(&frame[..frame.len().min(64)]));
+                println!(
+                    "  Hex:       {}",
+                    hex::encode(&frame[..frame.len().min(64)])
+                );
             }
             Err(e) => {
                 eprintln!("[ERROR] Failed to record operation: {e}");
@@ -120,7 +126,10 @@ fn main() {
         .expect("record write");
 
     let wire_frame = prepare_wire_frame(&record).expect("wire frame");
-    println!("  [+] Generated write record frame ({} bytes).", wire_frame.len());
+    println!(
+        "  [+] Generated write record frame ({} bytes).",
+        wire_frame.len()
+    );
 
     let challenge = ClockChallenge {
         nonce: [0x55; 16],

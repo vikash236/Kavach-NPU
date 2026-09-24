@@ -379,8 +379,8 @@ pub fn run_live_sentinel_daemon(config: &KavachConfig) {
 #[cfg(windows)]
 pub fn run_live_sentinel_daemon_ext(config: &KavachConfig, continuous: bool, max_ticks: usize) {
     use kavach_sensors::{
-        EventLogConsumer, KernelFileConsumer, PipeBrokerServer, PipeVerdictDispatcher,
-        TcpipConsumer, WfpDriver, KAVACH_BROKER_PIPE_NAME,
+        EventLogConsumer, KAVACH_BROKER_PIPE_NAME, KernelFileConsumer, PipeBrokerServer,
+        PipeVerdictDispatcher, TcpipConsumer, WfpDriver,
     };
     use std::sync::{Arc, Mutex};
 
@@ -417,10 +417,16 @@ pub fn run_live_sentinel_daemon_ext(config: &KavachConfig, continuous: bool, max
     )));
     let broker_server = PipeBrokerServer::new(broker.clone(), KAVACH_BROKER_PIPE_NAME);
     let dispatcher = PipeVerdictDispatcher::new(KAVACH_BROKER_PIPE_NAME);
-    println!("  [+] Named pipe IPC server listening on {}.", broker_server.pipe_name());
+    println!(
+        "  [+] Named pipe IPC server listening on {}.",
+        broker_server.pipe_name()
+    );
 
     let npu_session = NpuSession::from_config(config, &kavach_core::PINNED_REFERENCE_PUBLIC_KEY);
-    println!("  [+] NPU Session linked: backend={}", npu_session.hardware_info().selected_backend);
+    println!(
+        "  [+] NPU Session linked: backend={}",
+        npu_session.hardware_info().selected_backend
+    );
     println!("Live Sentinel Daemon active (hardware telemetry linked).");
     if continuous {
         println!("Continuous monitoring active (100ms NPU heartbeat). Press Ctrl+C to exit.");
@@ -442,49 +448,71 @@ pub fn run_live_sentinel_daemon_ext(config: &KavachConfig, continuous: bool, max
         let now_ms = start_ts + tick * 100;
 
         // 1. Evaluate I/O Tripwire Head
-        let io_matrix = entropy_engine.lock().unwrap().tracker().build_tensor_matrix();
-        let io_tensor = kavach_core::IoInputTensor::from_f32_matrix(&io_matrix, kavach_core::QuantizationParams::default());
-        if let Ok(io_score) = npu_session.evaluate_io_head(&io_tensor) {
-            if io_score >= 0.85 {
-                println!("  [NPU ALERT] Head 1 (I/O Entropy Anomaly): score={:.4} >= 0.85", io_score);
-                let mut req_id = [0u8; 16];
-                req_id[0] = (tick & 0xFF) as u8;
-                let verdict = kavach_core::Verdict {
-                    protocol_version: kavach_core::ArtifactVersion { major: 1, minor: 0 },
-                    request_id: req_id,
-                    issued_at_unix_ms: now_ms,
-                    expires_at_unix_ms: now_ms + 10_000,
-                    detector_instance_id: [0xDE; 16],
-                    requested_action: kavach_core::EnforcementAction::SuspendAndAlert,
-                    evidence_digest: [0xEE; 32],
-                    model_bundle_sha256: [0x77; 32],
-                    policy_generation: config.allowlist.required_policy_generation,
-                    target_process_id: 1337,
-                    target_process_start_filetime: 133500000000000000,
-                    corroborating_evidence_count: 3,
-                    flags: 0,
-                };
-                let _ = kavach_core::VerdictDispatcher::dispatch(&dispatcher, &verdict);
-                println!("  [ENFORCEMENT] Dispatched SuspendAndAlert for PID 1337 to broker.");
-            }
+        let io_matrix = entropy_engine
+            .lock()
+            .unwrap()
+            .tracker()
+            .build_tensor_matrix();
+        let io_tensor = kavach_core::IoInputTensor::from_f32_matrix(
+            &io_matrix,
+            kavach_core::QuantizationParams::default(),
+        );
+        if let Ok(io_score) = npu_session.evaluate_io_head(&io_tensor)
+            && io_score >= 0.85
+        {
+            println!(
+                "  [NPU ALERT] Head 1 (I/O Entropy Anomaly): score={:.4} >= 0.85",
+                io_score
+            );
+            let mut req_id = [0u8; 16];
+            req_id[0] = (tick & 0xFF) as u8;
+            let verdict = kavach_core::Verdict {
+                protocol_version: kavach_core::ArtifactVersion { major: 1, minor: 0 },
+                request_id: req_id,
+                issued_at_unix_ms: now_ms,
+                expires_at_unix_ms: now_ms + 10_000,
+                detector_instance_id: [0xDE; 16],
+                requested_action: kavach_core::EnforcementAction::SuspendAndAlert,
+                evidence_digest: [0xEE; 32],
+                model_bundle_sha256: [0x77; 32],
+                policy_generation: config.allowlist.required_policy_generation,
+                target_process_id: 1337,
+                target_process_start_filetime: 133500000000000000,
+                corroborating_evidence_count: 3,
+                flags: 0,
+            };
+            let _ = kavach_core::VerdictDispatcher::dispatch(&dispatcher, &verdict);
+            println!("  [ENFORCEMENT] Dispatched SuspendAndAlert for PID 1337 to broker.");
         }
 
         // 2. Evaluate C2 Beacon Head
         let net_matrix = beacon_engine.lock().unwrap().build_tensor_matrix();
-        let net_tensor = kavach_core::NetInputTensor::from_f32_matrix(&net_matrix, kavach_core::QuantizationParams::default());
-        if let Ok(net_score) = npu_session.evaluate_net_head(&net_tensor) {
-            if net_score >= 0.85 {
-                println!("  [NPU ALERT] Head 2 (C2 Rhythm Anomaly): score={:.4} >= 0.85", net_score);
-            }
+        let net_tensor = kavach_core::NetInputTensor::from_f32_matrix(
+            &net_matrix,
+            kavach_core::QuantizationParams::default(),
+        );
+        if let Ok(net_score) = npu_session.evaluate_net_head(&net_tensor)
+            && net_score >= 0.85
+        {
+            println!(
+                "  [NPU ALERT] Head 2 (C2 Rhythm Anomaly): score={:.4} >= 0.85",
+                net_score
+            );
         }
 
         // 3. Evaluate Security Events Head
         let audit_matrix = event_subscriber.lock().unwrap().build_tensor_matrix();
-        let audit_tensor = kavach_core::AuditInputTensor::from_f32_matrix(&audit_matrix, kavach_core::QuantizationParams::default());
-        if let Ok(audit_score) = npu_session.evaluate_audit_head(&audit_tensor) {
-            if audit_score >= 0.85 {
-                println!("  [NPU ALERT] Head 3 (Audit Event Sequence Anomaly): score={:.4} >= 0.85", audit_score);
-            }
+        let audit_tensor = kavach_core::AuditInputTensor::from_f32_matrix(
+            &audit_matrix,
+            kavach_core::QuantizationParams::default(),
+        );
+        if let Ok(audit_score) = npu_session.evaluate_audit_head(&audit_tensor)
+            && audit_score >= 0.85
+        {
+            println!(
+                "  [NPU ALERT] Head 3 (Audit Event Sequence Anomaly): score={:.4} >= 0.85",
+                audit_score
+            );
         }
     }
     println!("Sentinel loop heartbeat cycle complete. Telemetry intact.");
@@ -532,10 +560,32 @@ fn main() {
         "npu-check" => {
             println!("=== Kavach-NPU Hardware & Runtime Probe ===");
             let hw = kavach_core::NpuHardwareInfo::probe();
-            println!("  Hardware Device Detected: {}", if hw.device_detected { "YES (PCI VEN_1022 DEV_1502)" } else { "NO" });
-            println!("  NPU Driver Version:       {}", hw.driver_version.as_deref().unwrap_or("NOT DETECTED"));
-            println!("  Runtime Bin Directory:    {}", hw.runtime_bin_dir.as_ref().map(|p| p.display().to_string()).unwrap_or_else(|| "MISSING".to_string()));
-            println!("  Phoenix xclbin Bitstream: {}", hw.xclbin_path.as_ref().map(|p| p.display().to_string()).unwrap_or_else(|| "MISSING".to_string()));
+            println!(
+                "  Hardware Device Detected: {}",
+                if hw.device_detected {
+                    "YES (PCI VEN_1022 DEV_1502)"
+                } else {
+                    "NO"
+                }
+            );
+            println!(
+                "  NPU Driver Version:       {}",
+                hw.driver_version.as_deref().unwrap_or("NOT DETECTED")
+            );
+            println!(
+                "  Runtime Bin Directory:    {}",
+                hw.runtime_bin_dir
+                    .as_ref()
+                    .map(|p| p.display().to_string())
+                    .unwrap_or_else(|| "MISSING".to_string())
+            );
+            println!(
+                "  Phoenix xclbin Bitstream: {}",
+                hw.xclbin_path
+                    .as_ref()
+                    .map(|p| p.display().to_string())
+                    .unwrap_or_else(|| "MISSING".to_string())
+            );
             println!("  Selected Backend:         {}", hw.selected_backend);
             println!("===========================================");
         }
@@ -573,7 +623,9 @@ fn main() {
         }
         "service" => {
             if args.len() < 3 {
-                eprintln!("Usage: kavach-npu service <install|uninstall|start|stop|status|run> [options]");
+                eprintln!(
+                    "Usage: kavach-npu service <install|uninstall|start|stop|status|run> [options]"
+                );
                 std::process::exit(1);
             }
             match args[2].as_str() {
@@ -593,42 +645,34 @@ fn main() {
                         }
                     }
                 }
-                "uninstall" => {
-                    match service::manager::uninstall_service() {
-                        Ok(msg) => println!("{}", msg),
-                        Err(e) => {
-                            eprintln!("Error uninstalling service: {}", e);
-                            std::process::exit(1);
-                        }
+                "uninstall" => match service::manager::uninstall_service() {
+                    Ok(msg) => println!("{}", msg),
+                    Err(e) => {
+                        eprintln!("Error uninstalling service: {}", e);
+                        std::process::exit(1);
                     }
-                }
-                "start" => {
-                    match service::manager::start_service() {
-                        Ok(msg) => println!("{}", msg),
-                        Err(e) => {
-                            eprintln!("Error starting service: {}", e);
-                            std::process::exit(1);
-                        }
+                },
+                "start" => match service::manager::start_service() {
+                    Ok(msg) => println!("{}", msg),
+                    Err(e) => {
+                        eprintln!("Error starting service: {}", e);
+                        std::process::exit(1);
                     }
-                }
-                "stop" => {
-                    match service::manager::stop_service() {
-                        Ok(msg) => println!("{}", msg),
-                        Err(e) => {
-                            eprintln!("Error stopping service: {}", e);
-                            std::process::exit(1);
-                        }
+                },
+                "stop" => match service::manager::stop_service() {
+                    Ok(msg) => println!("{}", msg),
+                    Err(e) => {
+                        eprintln!("Error stopping service: {}", e);
+                        std::process::exit(1);
                     }
-                }
-                "status" => {
-                    match service::manager::query_status() {
-                        Ok(status) => println!("=== Service Status ===\n{}", status),
-                        Err(e) => {
-                            eprintln!("Error querying service status: {}", e);
-                            std::process::exit(1);
-                        }
+                },
+                "status" => match service::manager::query_status() {
+                    Ok(status) => println!("=== Service Status ===\n{}", status),
+                    Err(e) => {
+                        eprintln!("Error querying service status: {}", e);
+                        std::process::exit(1);
                     }
-                }
+                },
                 "run" => {
                     #[cfg(windows)]
                     {
@@ -644,7 +688,10 @@ fn main() {
                     }
                 }
                 other => {
-                    eprintln!("Unknown service action: {}. Expected install, uninstall, start, stop, status, or run.", other);
+                    eprintln!(
+                        "Unknown service action: {}. Expected install, uninstall, start, stop, status, or run.",
+                        other
+                    );
                     std::process::exit(1);
                 }
             }

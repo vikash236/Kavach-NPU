@@ -26,8 +26,8 @@ pub mod win_service {
         RegisterServiceCtrlHandlerExW, SERVICE_ACCEPT_SHUTDOWN, SERVICE_ACCEPT_STOP,
         SERVICE_CONTROL_INTERROGATE, SERVICE_CONTROL_SHUTDOWN, SERVICE_CONTROL_STOP,
         SERVICE_RUNNING as SCM_SERVICE_RUNNING, SERVICE_START_PENDING, SERVICE_STATUS,
-        SERVICE_STOPPED, SERVICE_STOP_PENDING, SERVICE_TABLE_ENTRYW,
-        SERVICE_WIN32_OWN_PROCESS, SetServiceStatus, StartServiceCtrlDispatcherW,
+        SERVICE_STOP_PENDING, SERVICE_STOPPED, SERVICE_TABLE_ENTRYW, SERVICE_WIN32_OWN_PROCESS,
+        SetServiceStatus, StartServiceCtrlDispatcherW,
     };
 
     static STATUS_HANDLE: AtomicPtr<std::ffi::c_void> = AtomicPtr::new(ptr::null_mut());
@@ -49,7 +49,7 @@ pub mod win_service {
             return false;
         }
 
-        let mut status = SERVICE_STATUS {
+        let status = SERVICE_STATUS {
             dwServiceType: SERVICE_WIN32_OWN_PROCESS,
             dwCurrentState: current_state,
             dwControlsAccepted: controls_accepted,
@@ -59,7 +59,7 @@ pub mod win_service {
             dwWaitHint: wait_hint_ms,
         };
 
-        unsafe { SetServiceStatus(handle, &mut status) != 0 }
+        unsafe { SetServiceStatus(handle, &status) != 0 }
     }
 
     /// SCM control handler callback.
@@ -73,13 +73,7 @@ pub mod win_service {
             SERVICE_CONTROL_STOP | SERVICE_CONTROL_SHUTDOWN => {
                 SERVICE_RUNNING.store(false, Ordering::SeqCst);
                 let handle = STATUS_HANDLE.load(Ordering::SeqCst);
-                update_service_status(
-                    handle,
-                    SERVICE_STOP_PENDING,
-                    0,
-                    NO_ERROR,
-                    10_000,
-                );
+                update_service_status(handle, SERVICE_STOP_PENDING, 0, NO_ERROR, 10_000);
                 NO_ERROR
             }
             SERVICE_CONTROL_INTERROGATE => NO_ERROR,
@@ -104,13 +98,7 @@ pub mod win_service {
         STATUS_HANDLE.store(handle, Ordering::SeqCst);
 
         // 1. Report START_PENDING
-        update_service_status(
-            handle,
-            SERVICE_START_PENDING,
-            0,
-            NO_ERROR,
-            5_000,
-        );
+        update_service_status(handle, SERVICE_START_PENDING, 0, NO_ERROR, 5_000);
 
         // 2. Report RUNNING with STOP and SHUTDOWN controls accepted
         update_service_status(
@@ -135,26 +123,14 @@ pub mod win_service {
         }
 
         // 5. Report STOP_PENDING while shutting down
-        update_service_status(
-            handle,
-            SERVICE_STOP_PENDING,
-            0,
-            NO_ERROR,
-            5_000,
-        );
+        update_service_status(handle, SERVICE_STOP_PENDING, 0, NO_ERROR, 5_000);
 
         // Wait for worker thread to exit cleanly (max 5s)
         let _ = rx.recv_timeout(std::time::Duration::from_secs(5));
         let _ = daemon_thread.join();
 
         // 6. Report STOPPED
-        update_service_status(
-            handle,
-            SERVICE_STOPPED,
-            0,
-            NO_ERROR,
-            0,
-        );
+        update_service_status(handle, SERVICE_STOPPED, 0, NO_ERROR, 0);
     }
 
     /// Main entry point when invoked as a Windows Service (`kavach-npu service run`).
@@ -191,10 +167,13 @@ pub mod manager {
     pub fn install_service(binary_path: Option<&str>) -> Result<String, String> {
         let current_exe = match binary_path {
             Some(p) => std::path::PathBuf::from(p),
-            None => std::env::current_exe().map_err(|e| format!("Failed to get current exe path: {}", e))?,
+            None => std::env::current_exe()
+                .map_err(|e| format!("Failed to get current exe path: {}", e))?,
         };
 
-        let bin_str = current_exe.to_str().ok_or("Invalid executable path string")?;
+        let bin_str = current_exe
+            .to_str()
+            .ok_or("Invalid executable path string")?;
         let bin_cmd = format!("\"{}\" service run", bin_str);
 
         // 1. Create service via sc.exe
@@ -247,7 +226,10 @@ pub mod manager {
             .map_err(|e| format!("Failed to execute sc.exe delete: {}", e))?;
 
         if output.status.success() {
-            Ok(format!("Service '{}' successfully uninstalled.", SERVICE_NAME))
+            Ok(format!(
+                "Service '{}' successfully uninstalled.",
+                SERVICE_NAME
+            ))
         } else {
             let stdout = String::from_utf8_lossy(&output.stdout);
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -264,7 +246,11 @@ pub mod manager {
 
         let stdout = String::from_utf8_lossy(&output.stdout);
         if output.status.success() {
-            Ok(format!("Service '{}' start signal dispatched:\n{}", SERVICE_NAME, stdout.trim()))
+            Ok(format!(
+                "Service '{}' start signal dispatched:\n{}",
+                SERVICE_NAME,
+                stdout.trim()
+            ))
         } else {
             let stderr = String::from_utf8_lossy(&output.stderr);
             Err(format!("sc start failed: {} {}", stdout, stderr))
@@ -280,7 +266,11 @@ pub mod manager {
 
         let stdout = String::from_utf8_lossy(&output.stdout);
         if output.status.success() {
-            Ok(format!("Service '{}' stop signal dispatched:\n{}", SERVICE_NAME, stdout.trim()))
+            Ok(format!(
+                "Service '{}' stop signal dispatched:\n{}",
+                SERVICE_NAME,
+                stdout.trim()
+            ))
         } else {
             let stderr = String::from_utf8_lossy(&output.stderr);
             Err(format!("sc stop failed: {} {}", stdout, stderr))

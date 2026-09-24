@@ -42,9 +42,7 @@ impl VerdictDispatcher for PipeVerdictDispatcher {
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_millis() as u64;
-            broker
-                .evaluate_and_enforce(verdict, now_ms)
-                .map(|_| ())
+            broker.evaluate_and_enforce(verdict, now_ms).map(|_| ())
         } else {
             // Live named pipe transmission
             let wire_bytes = verdict.to_wire();

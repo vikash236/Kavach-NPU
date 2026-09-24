@@ -5,8 +5,8 @@
 mod onnx_builder;
 
 use ed25519_dalek::{Signer, SigningKey, VerifyingKey};
-use rand::rngs::OsRng;
 use kavach_core::manifest::{ModelManifest, encode_base64, verify_bundle_dir};
+use rand::rngs::OsRng;
 use sha2::{Digest, Sha256};
 use std::env;
 use std::fs;
@@ -117,7 +117,8 @@ fn cmd_stub_onnx(args: &[String]) -> Result<(), String> {
 }
 
 fn load_signing_key(path_str: &str) -> Result<SigningKey, String> {
-    let data = fs::read(path_str).map_err(|e| format!("failed to read key file {path_str}: {e}"))?;
+    let data =
+        fs::read(path_str).map_err(|e| format!("failed to read key file {path_str}: {e}"))?;
     if data.len() == 32 {
         let mut arr = [0u8; 32];
         arr.copy_from_slice(&data);
@@ -169,9 +170,10 @@ fn load_verifying_key(path_str: Option<&str>) -> Result<VerifyingKey, String> {
 }
 
 fn cmd_sign(args: &[String]) -> Result<(), String> {
-    let key_file = parse_arg(args, "--key").ok_or_else(|| "missing required --key flag".to_string())?;
-    let manifest_file =
-        parse_arg(args, "--manifest").ok_or_else(|| "missing required --manifest flag".to_string())?;
+    let key_file =
+        parse_arg(args, "--key").ok_or_else(|| "missing required --key flag".to_string())?;
+    let manifest_file = parse_arg(args, "--manifest")
+        .ok_or_else(|| "missing required --manifest flag".to_string())?;
     let output_file = parse_arg(args, "--output").unwrap_or_else(|| {
         let p = Path::new(&manifest_file);
         let parent = p.parent().unwrap_or_else(|| Path::new("."));
@@ -179,8 +181,8 @@ fn cmd_sign(args: &[String]) -> Result<(), String> {
     });
 
     let signing_key = load_signing_key(&key_file)?;
-    let manifest_bytes = fs::read(&manifest_file)
-        .map_err(|e| format!("read manifest {manifest_file}: {e}"))?;
+    let manifest_bytes =
+        fs::read(&manifest_file).map_err(|e| format!("read manifest {manifest_file}: {e}"))?;
 
     // Validate that manifest is parseable ModelManifest before signing
     let parsed: ModelManifest = serde_json::from_slice(&manifest_bytes)
@@ -202,8 +204,7 @@ fn cmd_sign(args: &[String]) -> Result<(), String> {
 }
 
 fn cmd_verify(args: &[String]) -> Result<(), String> {
-    let bundle_dir_str =
-        parse_arg(args, "--bundle").unwrap_or_else(|| "models/active".to_string());
+    let bundle_dir_str = parse_arg(args, "--bundle").unwrap_or_else(|| "models/active".to_string());
     let pubkey_file = parse_arg(args, "--pubkey");
     let min_rollback: u64 = parse_arg(args, "--rollback")
         .and_then(|s| s.parse().ok())
@@ -216,7 +217,10 @@ fn cmd_verify(args: &[String]) -> Result<(), String> {
     match verify_bundle_dir(bundle_dir, &verifying_key, min_rollback) {
         Ok(manifest) => {
             println!("\n[OK] Model bundle verified successfully!");
-            println!("  Artifact Version: {}.{}", manifest.artifact_version.major, manifest.artifact_version.minor);
+            println!(
+                "  Artifact Version: {}.{}",
+                manifest.artifact_version.major, manifest.artifact_version.minor
+            );
             println!("  Bundle Version:   {}", manifest.bundle_version);
             println!("  Rollback Gen:     {}", manifest.rollback_generation);
             println!("  Key ID:           {}", manifest.key_id);
@@ -225,7 +229,10 @@ fn cmd_verify(args: &[String]) -> Result<(), String> {
             println!("  ONNX Opset:       {}", manifest.onnx.opset);
             println!("  Tensors:          {} tensors", manifest.tensors.len());
             for t in &manifest.tensors {
-                println!("    - {} ({}, {}, shape: {:?})", t.name, t.direction, t.dtype, t.shape);
+                println!(
+                    "    - {} ({}, {}, shape: {:?})",
+                    t.name, t.direction, t.dtype, t.shape
+                );
             }
             Ok(())
         }
@@ -258,7 +265,8 @@ pub fn create_dev_bundle(bundle_dir: &Path, keys_dir: &Path) -> Result<(), Strin
     // 2. Generate stub ONNX
     let onnx_bytes = onnx_builder::generate_kavach_stub_onnx(21);
     let onnx_file = bundle_dir.join("kavach_multitask_int8.onnx");
-    fs::write(&onnx_file, &onnx_bytes).map_err(|e| format!("write {}: {e}", onnx_file.display()))?;
+    fs::write(&onnx_file, &onnx_bytes)
+        .map_err(|e| format!("write {}: {e}", onnx_file.display()))?;
 
     let onnx_sha256 = hex::encode(Sha256::digest(&onnx_bytes));
 
@@ -348,7 +356,10 @@ pub fn create_dev_bundle(bundle_dir: &Path, keys_dir: &Path) -> Result<(), Strin
     verify_bundle_dir(bundle_dir, &verifying_key, 1)
         .map_err(|e| format!("self-verification of generated bundle failed: {e}"))?;
 
-    println!("Reference signed model bundle initialized successfully at {}:", bundle_dir.display());
+    println!(
+        "Reference signed model bundle initialized successfully at {}:",
+        bundle_dir.display()
+    );
     println!("  ONNX File:     {}", onnx_file.display());
     println!("  ONNX SHA-256:  {}", onnx_sha256);
     println!("  Manifest:      {}", manifest_file.display());

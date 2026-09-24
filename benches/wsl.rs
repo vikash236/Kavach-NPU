@@ -1,9 +1,7 @@
 use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use kavach_core::ArtifactVersion;
 use kavach_wsl::clock_sync::{ClockChallenge, ClockResponse, ClockSynchronizer};
-use kavach_wsl::correlator::{
-    HostFileEvent, WslCorrelator, translate_mnt_to_windows_path,
-};
+use kavach_wsl::correlator::{HostFileEvent, WslCorrelator, translate_mnt_to_windows_path};
 use kavach_wsl::{GuestFileOperation, GuestWriteRecord};
 
 fn bench_wsl(c: &mut Criterion) {
@@ -90,7 +88,10 @@ fn bench_wsl(c: &mut Criterion) {
 
     group.bench_function("correlate_guest_record", |b| {
         b.iter(|| {
-            correlator.correlate_guest_record(black_box(record.clone()), black_box(1_000_000 + 50 * 1_000_000));
+            correlator.correlate_guest_record(
+                black_box(record.clone()),
+                black_box(1_000_000 + 50 * 1_000_000),
+            );
         });
     });
 

@@ -87,10 +87,10 @@ impl WriteBurstTracker {
 
     /// Extracts the 10x4 tensor matrix across active events, or a zeroed matrix if empty.
     pub fn build_tensor_matrix(&self) -> [[f32; NPU_FEATURES_PER_SLOT]; NPU_TIME_SLOTS] {
-        if let Some(last_event) = self.events.last() {
-            if let Some(eval) = self.evaluate_pid(last_event.pid, last_event.timestamp_ms) {
-                return eval.tensor_matrix;
-            }
+        if let Some(last_event) = self.events.last()
+            && let Some(eval) = self.evaluate_pid(last_event.pid, last_event.timestamp_ms)
+        {
+            return eval.tensor_matrix;
         }
         [[0.0f32; NPU_FEATURES_PER_SLOT]; NPU_TIME_SLOTS]
     }

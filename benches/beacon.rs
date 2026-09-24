@@ -87,12 +87,15 @@ fn bench_beacon(c: &mut Criterion) {
 
     // 6. Complete NPU Head 2 Hardware Dispatch (< 2.5ms README SLA)
     let config = kavach_core::KavachConfig::safe_defaults();
-    let npu_session = kavach_core::NpuSession::from_config(&config, &kavach_core::PINNED_REFERENCE_PUBLIC_KEY);
+    let npu_session =
+        kavach_core::NpuSession::from_config(&config, &kavach_core::PINNED_REFERENCE_PUBLIC_KEY);
     let net_tensor = NetInputTensor::from_f32_matrix(&f32_matrix, qparams);
 
     group.bench_function("npu_session_net_inference", |b| {
         b.iter(|| {
-            npu_session.evaluate_net_head(black_box(&net_tensor)).unwrap();
+            npu_session
+                .evaluate_net_head(black_box(&net_tensor))
+                .unwrap();
         });
     });
 
