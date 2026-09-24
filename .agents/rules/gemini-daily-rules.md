@@ -27,7 +27,9 @@ month than Codex does — so the leash is tighter here, not looser.
 ## Absolute prohibitions — no exception, no matter how small the change looks
 1. **Never touch anything under `keys/`, signing logic, or manifest
    verification code.** Not a rename, not a comment fix, nothing. This is
-   the exact category that caused the original incident.
+   the exact category that caused the original incident. Exclude
+   `crates/kavach-core/src/keys.rs` from workspace `cargo fmt` passes
+   (format per-package or ensure untouched).
 2. **Never write, edit, or commit a private key, seed, or any cryptographic
    secret**, in code, in a comment, in a test fixture, or in a file.
 3. **Never claim a performance number, latency, or "hardware" behavior
@@ -50,6 +52,10 @@ month than Codex does — so the leash is tighter here, not looser.
    a claim. Any status report language must match the verification
    standard already set in `docs/status-report.md` — every claim needs a
    command or file reference attached.
+   **Full disclosure is mandatory:** The session report's "Flagged"
+   section must explicitly list any files that were touched and
+   subsequently reverted (including whitespace or formatting tool
+   side-effects), not just items left unresolved.
 
 ## Daily session shape
 1. Read `docs/status-report.md` first — it is the only source of truth for
@@ -59,6 +65,8 @@ month than Codex does — so the leash is tighter here, not looser.
 3. Run `cargo build --workspace`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`, `cargo fmt --check` — paste
    real output, not a summary of it.
 4. One small, honestly-described commit. No bundling unrelated fixes.
+   Always verify `git diff` before committing to ensure untouched
+   sensitive files (like `keys.rs`) were not incidentally modified.
 5. If nothing was assigned that day, do nothing rather than invent work.
    An idle day is fine. An invented feature is not.
 
