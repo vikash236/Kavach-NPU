@@ -51,7 +51,7 @@ impl std::fmt::Display for SystemStatusReport {
 pub fn collect_status(config: &KavachConfig) -> SystemStatusReport {
     // Model bundle verification per ADR 004:
     // Dynamically verify bundle directory specified in config using the pinned development key.
-    let npu = NpuSession::from_config(config, &kavach_core::PINNED_DEV_PUBLIC_KEY);
+    let npu = NpuSession::from_config(config, &kavach_core::PINNED_REFERENCE_PUBLIC_KEY);
 
     let npu_status_block = npu.format_status_report();
 
@@ -419,7 +419,7 @@ pub fn run_live_sentinel_daemon_ext(config: &KavachConfig, continuous: bool, max
     let dispatcher = PipeVerdictDispatcher::new(KAVACH_BROKER_PIPE_NAME);
     println!("  [+] Named pipe IPC server listening on {}.", broker_server.pipe_name());
 
-    let npu_session = NpuSession::from_config(config, &kavach_core::PINNED_DEV_PUBLIC_KEY);
+    let npu_session = NpuSession::from_config(config, &kavach_core::PINNED_REFERENCE_PUBLIC_KEY);
     println!("  [+] NPU Session linked: backend={}", npu_session.hardware_info().selected_backend);
     println!("Live Sentinel Daemon active (hardware telemetry linked).");
     if continuous {
@@ -685,7 +685,7 @@ mod tests {
         let output = format!("{}", report);
         assert!(output.contains("Kavach-NPU status: DEGRADED_OBSERVER"));
         assert!(output.contains("model.reason: bundle_missing"));
-        assert!(output.contains("model.expected_key_id: model-2026-a"));
+        assert!(output.contains("model.expected_key_id: reference-model-2026-b"));
         assert!(output.contains("enforcement: DISABLED (model-driven actions denied)"));
         assert!(output.contains("telemetry: OBSERVER_ONLY"));
     }

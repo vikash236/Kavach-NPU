@@ -5,6 +5,7 @@
 mod onnx_builder;
 
 use ed25519_dalek::{Signer, SigningKey, VerifyingKey};
+use rand::rngs::OsRng;
 use kavach_core::manifest::{ModelManifest, encode_base64, verify_bundle_dir};
 use sha2::{Digest, Sha256};
 use std::env;
@@ -22,7 +23,6 @@ SUBCOMMANDS:
     keygen      Generate Ed25519 keypair for model manifest signing
                 Options:
                     --output <DIR>     Output directory for keys (default: keys/)
-                    --seed <STRING>    Optional deterministic seed string
 
     stub-onnx   Generate reference INT8 multi-task stub ONNX file
                 Options:
@@ -38,7 +38,7 @@ SUBCOMMANDS:
     verify      Verify complete bundle directory against Ed25519 public key
                 Options:
                     --bundle <DIR>     Directory containing manifest.json, manifest.sig, onnx
-                    --pubkey <FILE>    Optional public key file (default: built-in pinned dev key)
+                    --pubkey <FILE>    Optional public key file (default: built-in pinned reference key)
                     --rollback <GEN>   Minimum acceptable rollback generation (default: 1)
 
     init-dev    Convenience command: generate keys, stub ONNX, manifest.json, and manifest.sig
@@ -62,17 +62,7 @@ fn parse_arg(args: &[String], flag: &str) -> Option<String> {
 
 fn cmd_keygen(args: &[String]) -> Result<(), String> {
     let out_dir = parse_arg(args, "--output").unwrap_or_else(|| "keys".to_string());
-    let seed_str = parse_arg(args, "--seed");
-
-    let signing_key = if let Some(seed) = seed_str {
-        let mut seed_bytes = [0u8; 32];
-        let bytes = seed.as_bytes();
-        let copy_len = bytes.len().min(32);
-        seed_bytes[..copy_len].copy_from_slice(&bytes[..copy_len]);
-        SigningKey::from_bytes(&seed_bytes)
-    } else {
-        kavach_core::keys::dev_signing_key()
-    };
+    let signing_key = SigningKey::generate(&mut OsRng);
 
     let verifying_key = signing_key.verifying_key();
     let pub_bytes = verifying_key.to_bytes();
@@ -173,8 +163,8 @@ fn load_verifying_key(path_str: Option<&str>) -> Result<VerifyingKey, String> {
             data.len()
         ))
     } else {
-        // Built-in dev verifying key
-        Ok(kavach_core::keys::dev_verifying_key())
+        // Built-in rotated public verification key.
+        Ok(kavach_core::keys::pinned_reference_verifying_key())
     }
 }
 
@@ -252,8 +242,8 @@ pub fn create_dev_bundle(bundle_dir: &Path, keys_dir: &Path) -> Result<(), Strin
     fs::create_dir_all(keys_dir)
         .map_err(|e| format!("failed to create dir {}: {e}", keys_dir.display()))?;
 
-    // 1. Generate dev keys
-    let signing_key = kavach_core::keys::dev_signing_key();
+    // 1. Generate a fresh local-only reference keypair.
+    let signing_key = SigningKey::generate(&mut OsRng);
     let verifying_key = signing_key.verifying_key();
     let priv_bytes = signing_key.to_bytes();
     let pub_bytes = verifying_key.to_bytes();
@@ -282,7 +272,7 @@ pub fn create_dev_bundle(bundle_dir: &Path, keys_dir: &Path) -> Result<(), Strin
   "bundle_version": "0.1.0-dev",
   "rollback_generation": 1,
   "created_at": "2026-09-23T00:00:00Z",
-  "key_id": "model-2026-a",
+  "key_id": "reference-model-2026-b",
   "onnx": {{
     "file": "kavach_multitask_int8.onnx",
     "sha256": "{onnx_sha256}",

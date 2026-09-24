@@ -23,7 +23,7 @@ pub use allowlist::{AllowlistEntry, AllowlistError, AllowlistManifest, Authentic
 pub use config::{
     AllowlistConfig, ConfigError, ContainmentConfig, KavachConfig, ModelConfig, WslConfig,
 };
-pub use keys::{PINNED_DEV_PUBLIC_KEY, dev_signing_key, dev_verifying_key};
+pub use keys::{PINNED_REFERENCE_PUBLIC_KEY, pinned_reference_verifying_key};
 pub use manifest::{
     DegradedReason, ModelManifest, OnnxMetadata, TensorContract, decode_base64, encode_base64,
 };

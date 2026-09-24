@@ -30,7 +30,7 @@ fn test_live_threat_detection_and_broker_containment_pipeline() {
     let config = KavachConfig::safe_defaults();
 
     // 1. Initialize verified NPU session
-    let npu_session = NpuSession::from_config(&config, &kavach_core::PINNED_DEV_PUBLIC_KEY);
+    let npu_session = NpuSession::from_config(&config, &kavach_core::PINNED_REFERENCE_PUBLIC_KEY);
     assert!(!npu_session.is_degraded(), "NPU session must be active");
 
     // 2. Initialize Enforcement Broker

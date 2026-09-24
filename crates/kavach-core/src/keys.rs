@@ -1,28 +1,20 @@
-//! Cryptographic key constants and release keyring bindings per ADR 004.
+//! Public verification-key bindings per ADR 004 and ADR 009.
 
-use ed25519_dalek::{SigningKey, VerifyingKey};
+use ed25519_dalek::VerifyingKey;
 
-/// Seed used to generate the deterministic development keypair for local builds.
-pub const DEV_SEED: &[u8; 32] = b"kavach-npu-dev-ed25519-seed-2026";
-
-/// The corresponding Ed25519 public key bytes for `DEV_SEED`.
-pub const PINNED_DEV_PUBLIC_KEY: [u8; 32] = [
-    37, 54, 218, 81, 216, 45, 38, 69, 195, 161, 121, 211, 185, 198, 4, 112, 17, 62, 67, 101,
-    174, 179, 234, 233, 95, 226, 58, 203, 208, 178, 241, 1,
+/// Rotated Ed25519 public key for the explicitly non-production reference bundle.
+///
+/// The value is replaced during the audited rotation procedure in ADR 009. Private
+/// signing material is deliberately never compiled into or committed to this crate.
+pub const PINNED_REFERENCE_PUBLIC_KEY: [u8; 32] = [
+    216, 16, 13, 239, 132, 89, 195, 213, 92, 112, 152, 19, 86, 109, 193, 194, 113, 140, 2, 74,
+    6, 25, 162, 54, 197, 120, 188, 223, 15, 14, 234, 175,
 ];
 
-/// Hex-encoded string of `PINNED_DEV_PUBLIC_KEY`.
-pub const PINNED_DEV_PUBLIC_KEY_HEX: &str =
-    "2536da51d82d2645c3a179d3b9c60470113e4365aeb3eae95fe23acbd0b2f101";
-
-/// Returns the development signing key.
-pub fn dev_signing_key() -> SigningKey {
-    SigningKey::from_bytes(DEV_SEED)
-}
-
-/// Returns the development verifying key.
-pub fn dev_verifying_key() -> VerifyingKey {
-    dev_signing_key().verifying_key()
+/// Returns the pinned reference-bundle verification key.
+pub fn pinned_reference_verifying_key() -> VerifyingKey {
+    VerifyingKey::from_bytes(&PINNED_REFERENCE_PUBLIC_KEY)
+        .expect("the compiled-in reference public key must be valid")
 }
 
 #[cfg(test)]
@@ -30,10 +22,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_pinned_dev_key_consistency() {
-        let vk = dev_verifying_key();
+    fn test_pinned_reference_key_is_valid() {
+        let vk = pinned_reference_verifying_key();
         let bytes = vk.to_bytes();
-        assert_eq!(bytes, PINNED_DEV_PUBLIC_KEY);
-        assert_eq!(hex::encode(bytes), PINNED_DEV_PUBLIC_KEY_HEX);
+        assert_eq!(bytes, PINNED_REFERENCE_PUBLIC_KEY);
     }
 }

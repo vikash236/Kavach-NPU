@@ -1,18 +1,18 @@
 use kavach_core::config::KavachConfig;
 use kavach_core::manifest::{DegradedReason, verify_bundle_dir};
 use kavach_core::npu::{NpuSession, NpuState};
-use kavach_core::{PINNED_DEV_PUBLIC_KEY, dev_verifying_key};
+use kavach_core::{PINNED_REFERENCE_PUBLIC_KEY, pinned_reference_verifying_key};
 use std::fs;
 use std::path::PathBuf;
 
 #[test]
 fn test_live_active_bundle_verification() {
     let bundle_path = PathBuf::from("models/active");
-    let vk = dev_verifying_key();
+    let vk = pinned_reference_verifying_key();
     let manifest = verify_bundle_dir(&bundle_path, &vk, 1).expect("bundle must verify");
 
-    assert_eq!(manifest.bundle_version, "0.1.0-dev");
-    assert_eq!(manifest.key_id, "model-2026-a");
+    assert_eq!(manifest.bundle_version, "0.1.0-reference");
+    assert_eq!(manifest.key_id, "reference-model-2026-b");
     assert_eq!(manifest.onnx.opset, 21);
     assert_eq!(manifest.onnx.quantization, "int8_qdq");
     assert_eq!(manifest.tensors.len(), 6);
@@ -21,7 +21,7 @@ fn test_live_active_bundle_verification() {
 #[test]
 fn test_npu_session_active_transitions() {
     let config = KavachConfig::safe_defaults();
-    let session = NpuSession::from_config(&config, &PINNED_DEV_PUBLIC_KEY);
+    let session = NpuSession::from_config(&config, &PINNED_REFERENCE_PUBLIC_KEY);
 
     assert!(!session.is_degraded());
     match session.state() {
@@ -46,13 +46,13 @@ fn test_tampered_signature_degrades_gracefully() {
     let sig_path = tmp_dir.join("manifest.sig");
     fs::write(&sig_path, "YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXoxMjM0NTY3ODkw").unwrap();
 
-    let vk = dev_verifying_key();
+    let vk = pinned_reference_verifying_key();
     let err = verify_bundle_dir(&tmp_dir, &vk, 1).unwrap_err();
     assert!(matches!(err, DegradedReason::ManifestSignatureInvalid(_)));
 
     let mut config = KavachConfig::safe_defaults();
     config.model.bundle_directory = tmp_dir.clone();
-    let session = NpuSession::from_config(&config, &PINNED_DEV_PUBLIC_KEY);
+    let session = NpuSession::from_config(&config, &PINNED_REFERENCE_PUBLIC_KEY);
     assert!(session.is_degraded());
     assert!(session.format_status_report().contains("manifest_signature_invalid"));
 
@@ -68,13 +68,13 @@ fn test_tampered_onnx_degrades_gracefully() {
     let onnx_path = tmp_dir.join("kavach_multitask_int8.onnx");
     fs::write(&onnx_path, b"malicious or corrupted ONNX bytes").unwrap();
 
-    let vk = dev_verifying_key();
+    let vk = pinned_reference_verifying_key();
     let err = verify_bundle_dir(&tmp_dir, &vk, 1).unwrap_err();
     assert!(matches!(err, DegradedReason::OnnxHashMismatch { .. }));
 
     let mut config = KavachConfig::safe_defaults();
     config.model.bundle_directory = tmp_dir.clone();
-    let session = NpuSession::from_config(&config, &PINNED_DEV_PUBLIC_KEY);
+    let session = NpuSession::from_config(&config, &PINNED_REFERENCE_PUBLIC_KEY);
     assert!(session.is_degraded());
     assert!(session.format_status_report().contains("onnx_hash_mismatch"));
 
@@ -86,7 +86,7 @@ fn test_rollback_rejection_degrades_gracefully() {
     let tmp_dir = tempfile_dir("rollback_test");
     copy_dir("models/active", &tmp_dir);
 
-    let vk = dev_verifying_key();
+    let vk = pinned_reference_verifying_key();
     // Bundle generation is 1; require 42
     let err = verify_bundle_dir(&tmp_dir, &vk, 42).unwrap_err();
     assert!(matches!(err, DegradedReason::RollbackRejected { minimum: 42, actual: 1 }));
@@ -94,7 +94,7 @@ fn test_rollback_rejection_degrades_gracefully() {
     let mut config = KavachConfig::safe_defaults();
     config.model.bundle_directory = tmp_dir.clone();
     config.model.minimum_rollback_generation = 42;
-    let session = NpuSession::from_config(&config, &PINNED_DEV_PUBLIC_KEY);
+    let session = NpuSession::from_config(&config, &PINNED_REFERENCE_PUBLIC_KEY);
     assert!(session.is_degraded());
     assert!(session.format_status_report().contains("rollback_rejected"));
 

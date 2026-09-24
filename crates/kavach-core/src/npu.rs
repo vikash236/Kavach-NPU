@@ -93,7 +93,7 @@ impl NpuSession {
                 return Self::new_degraded(
                     DegradedReason::ManifestSignatureInvalid(format!("invalid verifying key: {e}")),
                     config.model.minimum_rollback_generation,
-                    "model-2026-a",
+                    "reference-model-2026-b",
                 );
             }
         };
@@ -107,7 +107,7 @@ impl NpuSession {
             Err(reason) => Self::new_degraded(
                 reason,
                 config.model.minimum_rollback_generation,
-                "model-2026-a",
+                "reference-model-2026-b",
             ),
         }
     }
@@ -218,7 +218,7 @@ mod tests {
             bundle_version: "1.0.0".into(),
             rollback_generation: 42,
             created_at: "2026-09-09T00:00:00Z".into(),
-            key_id: "model-2026-a".into(),
+            key_id: "reference-model-2026-b".into(),
             onnx: crate::manifest::OnnxMetadata {
                 file: "kavach_multitask_int8.onnx".into(),
                 sha256: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".into(),
@@ -261,7 +261,7 @@ mod tests {
         let session = NpuSession::new_degraded(
             DegradedReason::ManifestSignatureInvalid("tampered".into()),
             42,
-            "model-2026-a",
+            "reference-model-2026-b",
         );
         assert!(session.is_degraded());
 

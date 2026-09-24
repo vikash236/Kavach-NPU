@@ -3,3 +3,5 @@
 /test-canary/
 /dist/
 *.log
+keys/*.key
+keys/*.key.hex
