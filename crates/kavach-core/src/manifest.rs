@@ -401,4 +401,118 @@ mod tests {
             }
         );
     }
+
+    #[test]
+    fn test_empty_manifest_json_rejected() {
+        let (_signing, verifying) = make_test_keypair();
+        let err = verify_manifest_and_onnx(b"", "dummy_sig", b"", &verifying, 0).unwrap_err();
+        assert!(matches!(err, DegradedReason::ManifestSchemaInvalid(_)));
+    }
+
+    #[test]
+    fn test_malformed_json_rejected() {
+        let (_signing, verifying) = make_test_keypair();
+        let err = verify_manifest_and_onnx(b"{not valid json", "dummy_sig", b"", &verifying, 0)
+            .unwrap_err();
+        assert!(matches!(err, DegradedReason::ManifestSchemaInvalid(_)));
+    }
+
+    #[test]
+    fn test_unsupported_major_version_rejected() {
+        let (signing, verifying) = make_test_keypair();
+        let onnx_dummy = b"fake-onnx-model-weights";
+        let onnx_hash = hex::encode(Sha256::digest(onnx_dummy));
+        let manifest_str = sample_manifest_json(&onnx_hash, 50).replace(
+            r#""artifact_version": {"major": 1, "minor": 0}"#,
+            r#""artifact_version": {"major": 2, "minor": 0}"#,
+        );
+        let manifest_digest = Sha256::digest(manifest_str.as_bytes());
+        let sig = signing.sign(&manifest_digest);
+        let sig_b64 = encode_base64(&sig.to_bytes());
+
+        let err = verify_manifest_and_onnx(
+            manifest_str.as_bytes(),
+            &sig_b64,
+            onnx_dummy,
+            &verifying,
+            10,
+        )
+        .unwrap_err();
+
+        match err {
+            DegradedReason::ManifestSchemaInvalid(msg) => {
+                assert!(msg.contains("unsupported major version 2"));
+            }
+            other => panic!("expected ManifestSchemaInvalid, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_wrong_signing_key_rejected() {
+        let (signing_a, _verifying_a) = make_test_keypair();
+        let mut seed_b = [0u8; 32];
+        seed_b[0] = 0x99;
+        let signing_b = SigningKey::from_bytes(&seed_b);
+        let verifying_b = signing_b.verifying_key();
+
+        let onnx_dummy = b"fake-onnx-model-weights";
+        let onnx_hash = hex::encode(Sha256::digest(onnx_dummy));
+        let manifest_str = sample_manifest_json(&onnx_hash, 42);
+        let manifest_digest = Sha256::digest(manifest_str.as_bytes());
+        let sig = signing_a.sign(&manifest_digest);
+        let sig_b64 = encode_base64(&sig.to_bytes());
+
+        let err = verify_manifest_and_onnx(
+            manifest_str.as_bytes(),
+            &sig_b64,
+            onnx_dummy,
+            &verifying_b,
+            40,
+        )
+        .unwrap_err();
+
+        assert!(matches!(err, DegradedReason::ManifestSignatureInvalid(_)));
+    }
+
+    #[test]
+    fn test_truncated_signature_rejected() {
+        let (_signing, verifying) = make_test_keypair();
+        let onnx_dummy = b"fake-onnx-model-weights";
+        let onnx_hash = hex::encode(Sha256::digest(onnx_dummy));
+        let manifest_str = sample_manifest_json(&onnx_hash, 42);
+
+        let short_sig = encode_base64(&[0xaa; 32]);
+        let err = verify_manifest_and_onnx(
+            manifest_str.as_bytes(),
+            &short_sig,
+            onnx_dummy,
+            &verifying,
+            40,
+        )
+        .unwrap_err();
+
+        match err {
+            DegradedReason::ManifestSignatureInvalid(msg) => {
+                assert!(msg.contains("expected 64 signature bytes, got 32"));
+            }
+            other => panic!("expected ManifestSignatureInvalid, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_base64_decode_invalid_chars() {
+        let err = decode_base64("!!!invalid!!!").unwrap_err();
+        assert!(err.contains("invalid base64 character '!'"));
+    }
+
+    #[test]
+    fn test_base64_roundtrip_with_padding() {
+        let test_cases: [&[u8]; 6] = [b"a", b"ab", b"abc", b"abcd", &[0x42; 32], &[0x7f; 64]];
+
+        for &original in &test_cases {
+            let encoded = encode_base64(original);
+            let decoded = decode_base64(&encoded).expect("must decode valid base64");
+            assert_eq!(decoded.as_slice(), original);
+        }
+    }
 }
