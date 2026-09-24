@@ -241,6 +241,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore = "requires local npu_runtime directory"]
     fn test_npu_path_resolution() {
         let (bin, xclbin) = resolve_npu_paths();
         // Since npu_runtime exists in workspace root, resolution must succeed
@@ -255,12 +256,22 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires local npu_runtime directory"]
     fn test_npu_hardware_info_probe() {
         let info = NpuHardwareInfo::probe();
         println!("Hardware info probed: {:#?}", info);
         // Runtime and bitstream are verified locally
         assert!(info.runtime_bin_dir.is_some());
         assert!(info.xclbin_path.is_some());
+    }
+
+    #[test]
+    fn test_npu_engine_default_fallback() {
+        let engine = NpuEngine::default();
+        assert_eq!(engine.total_inferences(), 0);
+        let backend = engine.info().selected_backend;
+        // Verify Display implementation is valid for selected backend
+        assert!(!format!("{backend}").is_empty());
     }
 
     #[test]
