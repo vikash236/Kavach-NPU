@@ -295,10 +295,15 @@ pub mod manager {
             .map_err(|e| format!("Failed to execute sc.exe query: {}", e))?;
 
         let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
         if output.status.success() {
             Ok(stdout.trim().to_string())
+        } else if stdout.contains("1060") || stderr.contains("1060") {
+            Ok(format!(
+                "Service '{}' is NOT installed.\nTo install, run: kavach-npu service install",
+                SERVICE_NAME
+            ))
         } else {
-            let stderr = String::from_utf8_lossy(&output.stderr);
             Err(format!("Service query failed: {} {}", stdout, stderr))
         }
     }
