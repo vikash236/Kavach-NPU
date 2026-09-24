@@ -112,6 +112,30 @@ pub fn resolve_npu_paths() -> (Option<PathBuf>, Option<PathBuf>) {
     (None, None)
 }
 
+/// Initializes the ONNX Runtime dynamic library from the specified path.
+/// Safe and idempotent: returns Ok(()) if already initialized.
+#[cfg(feature = "npu-hardware")]
+pub fn init_ort_runtime(dylib_path: &std::path::Path) -> Result<(), String> {
+    static INITIALIZED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+    if INITIALIZED.load(std::sync::atomic::Ordering::SeqCst) {
+        return Ok(());
+    }
+    ort::init_from(dylib_path).map_err(|e| {
+        format!(
+            "failed to initialize ONNX Runtime from {}: {e}",
+            dylib_path.display()
+        )
+    })?;
+    INITIALIZED.store(true, std::sync::atomic::Ordering::SeqCst);
+    Ok(())
+}
+
+/// Fallback stub when compiled without the npu-hardware feature flag.
+#[cfg(not(feature = "npu-hardware"))]
+pub fn init_ort_runtime(_dylib_path: &std::path::Path) -> Result<(), String> {
+    Err("npu-hardware feature is not enabled; compile with --features npu-hardware".into())
+}
+
 /// Checks if the AMD NPU PCI device is present on Windows.
 #[cfg(windows)]
 fn check_npu_hardware_device() -> bool {
@@ -290,5 +314,41 @@ mod tests {
         assert!(audit_score > 0.0 && audit_score <= 1.0);
 
         assert_eq!(engine.total_inferences(), 3);
+    }
+
+    #[test]
+    #[cfg(feature = "npu-hardware")]
+    fn test_init_ort_runtime_with_invalid_path() {
+        let bad_path = std::path::Path::new("nonexistent/invalid_onnxruntime.dll");
+        let res = init_ort_runtime(bad_path);
+        if let Err(e) = res {
+            assert!(e.contains("failed to initialize ONNX Runtime"));
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "npu-hardware")]
+    fn test_init_ort_runtime_with_local_package() {
+        let (bin_opt, _) = resolve_npu_paths();
+        if let Some(bin_dir) = bin_opt {
+            let dylib_path = bin_dir.join("onnxruntime.dll");
+            let res = init_ort_runtime(&dylib_path);
+            assert!(
+                res.is_ok(),
+                "init_ort_runtime must succeed with local runtime: {res:?}"
+            );
+        }
+    }
+
+    #[test]
+    #[cfg(not(feature = "npu-hardware"))]
+    fn test_init_ort_runtime_feature_disabled_stub() {
+        let p = std::path::Path::new("dummy");
+        let res = init_ort_runtime(p);
+        assert!(res.is_err());
+        assert!(
+            res.unwrap_err()
+                .contains("npu-hardware feature is not enabled")
+        );
     }
 }
