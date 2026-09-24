@@ -254,4 +254,42 @@ mod tests {
         assert!(!summary.is_anomalous);
         assert_eq!(summary.intermittent_encryption_score, 0.0);
     }
+
+    #[test]
+    fn test_empty_input_entropy_zero() {
+        assert_eq!(shannon_entropy(&[]), 0.0);
+    }
+
+    #[test]
+    fn test_two_byte_values_entropy_one() {
+        let data: Vec<u8> = (0..256).flat_map(|_| [0x00, 0xFF]).collect();
+        let h = shannon_entropy(&data);
+        assert!((h - 1.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_block_entropy_scan_empty_data() {
+        assert!(block_entropy_scan(&[], 4096).is_empty());
+    }
+
+    #[test]
+    fn test_block_entropy_scan_zero_block_size() {
+        assert!(block_entropy_scan(&[0; 100], 0).is_empty());
+    }
+
+    #[test]
+    fn test_differential_entropy_single_block() {
+        let summary = differential_entropy(&[7.98]);
+        assert_eq!(summary.total_blocks, 1);
+        assert_eq!(summary.high_entropy_ratio, 1.0);
+        assert!(summary.is_anomalous);
+    }
+
+    #[test]
+    fn test_differential_entropy_empty_blocks() {
+        let summary = differential_entropy(&[]);
+        assert_eq!(summary.total_blocks, 0);
+        assert_eq!(summary.mean_entropy, 0.0);
+        assert!(!summary.is_anomalous);
+    }
 }
