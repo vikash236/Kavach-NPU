@@ -34,7 +34,7 @@ fn test_npu_session_active_transitions() {
     let report = session.format_status_report();
     assert!(report.contains("Kavach-NPU status: ACTIVE"));
     assert!(report.contains("enforcement: ENABLED"));
-    assert!(report.contains("telemetry: HARDWARE_ACCELERATED"));
+    assert!(report.contains("telemetry: CPU_BASELINE"));
 }
 
 #[test]

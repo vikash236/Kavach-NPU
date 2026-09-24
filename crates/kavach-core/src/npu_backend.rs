@@ -1,7 +1,10 @@
-//! Hardware NPU execution provider and dynamic DLL loader for AMD XDNA / Vitis AI / DirectML.
+//! NPU hardware detection, runtime path resolution, and CPU baseline inference scorer.
 //!
-//! Provides zero-cost dynamic detection and dispatch to the AMD XDNA NPU on Phoenix (7840HS)
-//! using the native `onnxruntime.dll` and `onnxruntime_vitisai_ep.dll` runtime stack.
+//! Probes system hardware for AMD XDNA NPU devices (VEN_1022 & DEV_1502) and resolves
+//! native runtime paths. Multi-head model evaluation currently runs via a deterministic
+//! CPU baseline scoring engine (< 10 µs SLA) that computes weighted anomaly scores over
+//! quantized INT8 tensors, serving as the verified reference baseline while direct
+//! hardware session dispatch is wired.
 
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
@@ -159,9 +162,9 @@ fn check_npu_driver_version() -> Option<String> {
     None
 }
 
-/// Dispatches inference across the three multi-task heads.
-/// Employs NPU acceleration when hardware and bitstreams are ready,
-/// falling back to the validated SIMD CPU baseline.
+/// Multi-head baseline inference engine.
+/// Probes NPU hardware presence and runtime bitstreams, and computes deterministic
+/// CPU baseline anomaly scores over quantized INT8 feature tensors.
 #[derive(Debug)]
 pub struct NpuEngine {
     info: NpuHardwareInfo,
@@ -182,8 +185,8 @@ impl NpuEngine {
         &self.info
     }
 
-    /// Evaluates Head 1 (I/O File Entropy Autoencoder).
-    /// Input: [1, 10, 4] INT8 tensor.
+    /// Computes CPU baseline I/O anomaly score via weighted average over the [1, 10, 4] INT8 tensor.
+    /// Simulates Head 1 (I/O File Entropy Autoencoder) under deterministic < 10 µs SLA.
     pub fn run_io_inference(&self, tensor_data: &[[i8; 4]; 10]) -> f32 {
         self.active_inferences.fetch_add(1, Ordering::Relaxed);
 
@@ -197,8 +200,8 @@ impl NpuEngine {
         (score / 10.0).clamp(0.0, 1.0)
     }
 
-    /// Evaluates Head 2 (C2 Network Timing TCN).
-    /// Input: [1, 32, 4] INT8 tensor.
+    /// Computes CPU baseline C2 network timing anomaly score over the [1, 32, 4] INT8 tensor.
+    /// Simulates Head 2 (C2 Network Timing TCN) under deterministic < 10 µs SLA.
     pub fn run_net_inference(&self, tensor_data: &[[i8; 4]; 32]) -> f32 {
         self.active_inferences.fetch_add(1, Ordering::Relaxed);
 
@@ -209,8 +212,8 @@ impl NpuEngine {
         (total_delta / 32.0).clamp(0.0, 1.0)
     }
 
-    /// Evaluates Head 3 (Audit Event Sequence Embedding).
-    /// Input: [1, 16, 4] INT8 tensor.
+    /// Computes CPU baseline audit event sequence anomaly score over the [1, 16, 4] INT8 tensor.
+    /// Simulates Head 3 (Audit Event Sequence Embedding) under deterministic < 10 µs SLA.
     pub fn run_audit_inference(&self, tensor_data: &[[i8; 4]; 16]) -> f32 {
         self.active_inferences.fetch_add(1, Ordering::Relaxed);
 

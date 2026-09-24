@@ -8,19 +8,20 @@
 
 ### Executive Summary
 
-**Kavach-NPU (कवच)** is the first open-source, hardware-accelerated Endpoint Detection and Response (EDR) system that completely offloads threat detection away from host CPU cores onto dedicated **AMD XDNA Neural Processing Unit (NPU)** silicon.
+**Kavach-NPU (कवच)** is an open-source Endpoint Detection and Response (EDR) system architected to offload behavioral threat detection onto dedicated **AMD XDNA Neural Processing Unit (NPU)** silicon.
 
-Operating out-of-band with dedicated DMA pipelines and spatial AIE-ML tiles, Kavach acts as a continuous, sub-watt **perceptual firewall**. It classifies I/O entropy spikes, detects jittered C2 reverse shells, monitors Windows security event anomalies, and secures the WSL2 boundary in **sub-microsecond latency (22–50 nanoseconds) with zero CPU lag and zero discrete GPU power consumption.**
+Operating with hardware presence probing and runtime path discovery, Kavach integrates a verified **CPU baseline scoring engine** (< 10 µs SLA) simulating multi-head threat evaluation while direct out-of-band NPU session offloading is being wired. It classifies I/O entropy spikes, detects jittered C2 reverse shells, monitors Windows security event anomalies, and secures the WSL2 boundary with minimal CPU overhead.
 
 ---
 
 ### Key Capabilities & Architectural Pillars
 
-1. **Sub-Microsecond NPU Hardware Inference:**
-   - Multi-task INT8 neural network (`kavach_multitask_int8.onnx`) running on the Phoenix AIE2 spatial tile array (`1x4.xclbin`).
-   - Head 1 (I/O Entropy Tripwire): **27.47 ns** (43,600x faster than CPU).
-   - Head 2 (Network C2 Rhythm): **49.50 ns** (50,500x faster than CPU).
-   - Head 3 (Audit Event Lineage): **22.29 ns** (35,800x faster than CPU).
+1. **Deterministic Microsecond Threat Inference:**
+   - Multi-task INT8 scoring architecture (`kavach_multitask_int8.onnx`) designed for the Phoenix AIE2 spatial tile array (`1x4.xclbin`).
+   - Current releases evaluate threats via a verified deterministic CPU baseline scorer (< 10 µs SLA, zero heap allocations).
+   - Head 1 (I/O Entropy Tripwire): **27.47 ns** (Criterion benchmark).
+   - Head 2 (Network C2 Rhythm): **49.50 ns** (Criterion benchmark).
+   - Head 3 (Audit Event Lineage): **22.29 ns** (Criterion benchmark).
 
 2. **Autonomous Kernel Enforcement:**
    - Dynamic **Windows Filtering Platform (WFP)** layer-3/layer-4 IP quarantine rules (`FwpmFilterAdd0`).

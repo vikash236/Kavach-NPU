@@ -20,9 +20,9 @@ When modern ransomware or aggressive exploits strike:
 * They patch user-mode API hooks (`ntdll!EtwEventWrite`) to blind event logging.
 * They abuse virtualization boundaries like **WSL2 (Windows Subsystem for Linux)** to silently tamper with host files (`/mnt/c/`) while evading Windows Defender.
 
-**Kavach-NPU changes the playing field by moving behavioral defense onto dedicated, isolated hardware: the AMD XDNA NPU (10 TOPS).**
+**Kavach-NPU is designed to move behavioral defense onto dedicated, isolated hardware: the AMD XDNA NPU (10 TOPS).**
 
-Operating out-of-band with dedicated DMA pipelines and spatial AIE-ML tiles, Kavach acts as a continuous, sub-watt **perceptual firewall**. It classifies I/O entropy spikes, detects jittered C2 reverse shells, monitors Windows event anomalies, and locks down the WSL2 boundary in **sub-2ms with zero CPU lag and zero discrete GPU power consumption.**
+The architectural vision targets continuous, sub-watt perceptual monitoring using dedicated DMA pipelines and spatial AIE-ML tiles. Kavach is architected to classify I/O entropy spikes, detect jittered C2 reverse shells, monitor Windows event anomalies, and lock down the WSL2 boundary in sub-2ms with minimal CPU overhead and zero discrete GPU power consumption. *(Note: Current implementation executes deterministic SIMD/CPU baseline scoring under < 10 µs SLA while direct ONNX Runtime hardware dispatch is being integrated.)*
 
 ---
 
@@ -104,11 +104,14 @@ Operating out-of-band with dedicated DMA pipelines and spatial AIE-ML tiles, Kav
 
 ---
 
-## 4. Hardware Compute Budget (AMD Ryzen 7 7840HS XDNA)
+## 4. Hardware Compute Budget & Architectural Targets (AMD Ryzen 7 7840HS XDNA)
 
 Kavach-NPU operates on **1D statistical vectors and tabular time-series**, avoiding heavy 2D vision matrices.
 
-| Engine | Input Tensor | Latency on 10 TOPS NPU | Frequency | Duty Cycle |
+> [!NOTE]
+> The figures below represent **architectural design targets** for physical NPU silicon dispatch. Current releases execute deterministic CPU baseline scoring algorithms under < 10 µs SLA.
+
+| Engine | Input Tensor | Target Latency on 10 TOPS NPU | Target Frequency | Target Duty Cycle |
 | :--- | :--- | :--- | :--- | :--- |
 | **Tripwire (I/O)** | `[1, 10, 4]` (Entropy) | **~1.2 ms** | Write bursts only | ~0.6% |
 | **Beaconing (Net)** | `[1, 32, 4]` (Timing) | **~2.5 ms** | Every 32 packets | ~0.8% |
@@ -116,10 +119,10 @@ Kavach-NPU operates on **1D statistical vectors and tabular time-series**, avoid
 | **WSL Boundary (VM)** | `[1, 16, 4]` (Cross-I/O) | **~1.0 ms** | VM disk bursts | ~0.3% |
 | **Combined System** | **Unified Multi-Task Model** | **< 2.0 ms** | **Event-Driven** | **< 2.0% Total** |
 
-* **Average Power Draw:** **< 0.8W** (NPU sleeps 98% of the time).
-* **Host CPU Overhead:** **< 0.3%** across 8 cores / 16 threads.
+* **Target Average Power Draw:** **< 0.8W** (NPU sleeps 98% of the time).
+* **Target Host CPU Overhead:** **< 0.3%** across 8 cores / 16 threads.
 * **dGPU (RTX 3050):** **Completely powered off (0W).**
-* **RAM Usage:** **< 75 MB** in memory.
+* **Target RAM Usage:** **< 75 MB** in memory.
 
 ---
 
@@ -206,13 +209,16 @@ kavach-npu tripwire --test [path]  # Run Shannon block entropy and sliding-windo
 kavach-npu wsl --lab-mode          # Execute WSL2 cross-boundary AF_VSOCK correlation simulation
 ```
 
-### Physical Silicon Hardware Benchmarks (Criterion Validated)
+### Inference Engine Microbenchmarks (Criterion Validated)
 
-| Threat Head | Target Architecture | SLA Contract | Measured Silicon Latency | Acceleration vs CPU |
+> [!NOTE]
+> Benchmarks measure the deterministic in-memory CPU baseline scoring engine over quantized INT8 feature tensors. These benchmarks validate zero-allocation throughput and ensure algorithms execute well within SLA budgets before physical NPU hardware offloading.
+
+| Threat Head | Execution Mode | SLA Target | Measured Latency (CPU Baseline) | Margin vs SLA |
 | :--- | :--- | :--- | :--- | :--- |
-| **Head 1 (I/O Entropy)** | AMD Phoenix XDNA (1x4.xclbin) | $< 1.200\text{ ms}$ | **27.47 ns** | **43,600x Faster** |
-| **Head 2 (Network C2)** | AMD Phoenix XDNA (1x4.xclbin) | $< 2.500\text{ ms}$ | **49.50 ns** | **50,500x Faster** |
-| **Head 3 (Audit Lineage)**| AMD Phoenix XDNA (1x4.xclbin) | $< 0.800\text{ ms}$ | **22.29 ns** | **35,800x Faster** |
+| **Head 1 (I/O Entropy)** | CPU Baseline Scorer | $< 1.200\text{ ms}$ | **27.47 ns** | **Well within SLA** |
+| **Head 2 (Network C2)** | CPU Baseline Scorer | $< 2.500\text{ ms}$ | **49.50 ns** | **Well within SLA** |
+| **Head 3 (Audit Lineage)**| CPU Baseline Scorer | $< 0.800\text{ ms}$ | **22.29 ns** | **Well within SLA** |
 
 ---
 

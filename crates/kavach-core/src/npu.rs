@@ -1,4 +1,4 @@
-//! AMD XDNA NPU multi-head inference session manager and degraded observer mode per ADR 004 and model-manifest-v1.md.
+//! AMD XDNA NPU multi-head inference session manager, hardware probe integration, and degraded observer mode per ADR 004 and model-manifest-v1.md.
 
 use crate::manifest::{DegradedReason, ModelManifest};
 use crate::tensor::{AuditInputTensor, IoInputTensor, NetInputTensor};
@@ -137,14 +137,26 @@ impl NpuSession {
         let hw = self.engine.info();
         match &self.state {
             NpuState::Active { manifest } => {
+                let telemetry = match hw.selected_backend {
+                    crate::npu_backend::ExecutionProviderBackend::AmdXdnaNpu => {
+                        "CPU_BASELINE (AMD NPU detected, hardware dispatch pending)"
+                    }
+                    crate::npu_backend::ExecutionProviderBackend::DirectMlGpu => {
+                        "CPU_BASELINE (GPU detected, DirectML dispatch pending)"
+                    }
+                    crate::npu_backend::ExecutionProviderBackend::NativeCpuBaseline => {
+                        "CPU_BASELINE"
+                    }
+                };
                 format!(
-                    "Kavach-NPU status: ACTIVE\nmodel.bundle: {}\nmodel.version: {}\nmodel.rollback_generation: {}\nmodel.opset: {}\nexecution.provider: {}\nhardware.npu_detected: {}\nenforcement: ENABLED\ntelemetry: HARDWARE_ACCELERATED\n",
+                    "Kavach-NPU status: ACTIVE\nmodel.bundle: {}\nmodel.version: {}\nmodel.rollback_generation: {}\nmodel.opset: {}\nexecution.provider: {}\nhardware.npu_detected: {}\nenforcement: ENABLED\ntelemetry: {}\n",
                     manifest.onnx.file,
                     manifest.bundle_version,
                     manifest.rollback_generation,
                     manifest.onnx.opset,
                     hw.selected_backend,
-                    hw.device_detected
+                    hw.device_detected,
+                    telemetry
                 )
             }
             NpuState::DegradedObserver {
@@ -170,7 +182,7 @@ impl NpuSession {
         }
     }
 
-    /// Evaluates Head 1: I/O Entropy Autoencoder (< 1.2ms on XDNA).
+    /// Evaluates Head 1: I/O Entropy Autoencoder (Target < 1.2ms on XDNA; evaluated via CPU baseline scorer).
     pub fn evaluate_io_head(&self, input: &IoInputTensor) -> Result<f32, NpuError> {
         match &self.state {
             NpuState::DegradedObserver { reason, .. } => {
@@ -182,7 +194,7 @@ impl NpuSession {
         }
     }
 
-    /// Evaluates Head 2: C2 Network Timing TCN (< 2.5ms on XDNA).
+    /// Evaluates Head 2: C2 Network Timing TCN (Target < 2.5ms on XDNA; evaluated via CPU baseline scorer).
     pub fn evaluate_net_head(&self, input: &NetInputTensor) -> Result<f32, NpuError> {
         match &self.state {
             NpuState::DegradedObserver { reason, .. } => {
@@ -194,7 +206,7 @@ impl NpuSession {
         }
     }
 
-    /// Evaluates Head 3: Event Sequence Embedding (< 0.8ms on XDNA).
+    /// Evaluates Head 3: Event Sequence Embedding (Target < 0.8ms on XDNA; evaluated via CPU baseline scorer).
     pub fn evaluate_audit_head(&self, input: &AuditInputTensor) -> Result<f32, NpuError> {
         match &self.state {
             NpuState::DegradedObserver { reason, .. } => {

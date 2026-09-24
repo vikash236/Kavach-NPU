@@ -9,6 +9,15 @@
 
 ---
 
+## Current Integration Status
+
+> [!IMPORTANT]
+> - **Hardware Detection & Bitstream Resolution:** Fully implemented and functional via `NpuHardwareInfo::probe()` and `resolve_npu_paths()`. Detects AMD NPU PCI device (`VEN_1022&DEV_1502`), queries PnP driver versions, and resolves `1x4.xclbin` bitstream paths.
+> - **Inference Execution Engine:** Active sessions currently evaluate multi-head threat tensors using the verified, deterministic **CPU baseline scoring engine** (`NpuEngine`). This baseline guarantees sub-10 µs latency and zero heap allocations.
+> - **Native Hardware Dispatch (Target):** Out-of-band offloading to physical NPU tiles via direct ONNX Runtime C API (`onnxruntime_vitisai_ep.dll` / `ort::Session` with `IoBinding`) is the target architecture currently under development.
+
+---
+
 ## 1. System Hardware & Topology
 
 On the AMD Ryzen 7 7840HS platform, the NPU hardware topology is configured as follows:

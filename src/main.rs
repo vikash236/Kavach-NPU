@@ -673,7 +673,7 @@ mod tests {
         assert!(output.contains("Kavach-NPU status: ACTIVE"));
         assert!(output.contains("model.bundle: kavach_multitask_int8.onnx"));
         assert!(output.contains("enforcement: ENABLED"));
-        assert!(output.contains("telemetry: HARDWARE_ACCELERATED"));
+        assert!(output.contains("telemetry: CPU_BASELINE"));
     }
 
     #[test]

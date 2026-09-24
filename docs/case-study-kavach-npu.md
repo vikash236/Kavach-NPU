@@ -58,22 +58,22 @@ When modern ransomware (like LockBit 3.0 or BlackCat) detonates on an endpoint:
 
 ---
 
-## Physical Silicon Hardware Validation
+## Hardware Architecture & Algorithmic Validation
 
-We validated Kavach-NPU directly on physical hardware: an **AMD Ryzen 7 7840HS APU** (PCI Device `PCI\VEN_1022&DEV_1502`) with driver `32.0.20102.3930` running the Phoenix `1x4.xclbin` spatial bitstream.
+We validated Kavach-NPU on host hardware featuring an **AMD Ryzen 7 7840HS APU** (PCI Device `PCI\VEN_1022&DEV_1502`) with driver `32.0.20102.3930`, resolving the Phoenix `1x4.xclbin` spatial bitstream.
 
-Using Criterion micro-benchmarks on physical silicon, Kavach-NPU demonstrated unprecedented performance:
+Using Criterion micro-benchmarks, we validated the deterministic in-memory CPU baseline scoring engine across all three multi-task threat heads over quantized INT8 tensors:
 
-| Multi-Task Threat Head | Target Hardware Engine | SLA Target | Measured Hardware Latency | Speedup vs CPU |
+| Multi-Task Threat Head | Scoring Engine | SLA Target | Measured Latency (CPU Baseline) | Margin vs SLA |
 | :--- | :--- | :--- | :--- | :--- |
-| **Head 1 (I/O Entropy Tripwire)** | AMD Phoenix XDNA (1x4.xclbin) | $< 1.200\text{ ms}$ | **27.47 nanoseconds** | **43,600x Faster** |
-| **Head 2 (Network C2 Rhythm)** | AMD Phoenix XDNA (1x4.xclbin) | $< 2.500\text{ ms}$ | **49.50 nanoseconds** | **50,500x Faster** |
-| **Head 3 (Audit Event Lineage)** | AMD Phoenix XDNA (1x4.xclbin) | $< 0.800\text{ ms}$ | **22.29 nanoseconds** | **35,800x Faster** |
+| **Head 1 (I/O Entropy Tripwire)** | Deterministic Baseline | $< 1.200\text{ ms}$ | **27.47 nanoseconds** | **Well within SLA** |
+| **Head 2 (Network C2 Rhythm)** | Deterministic Baseline | $< 2.500\text{ ms}$ | **49.50 nanoseconds** | **Well within SLA** |
+| **Head 3 (Audit Event Lineage)** | Deterministic Baseline | $< 0.800\text{ ms}$ | **22.29 nanoseconds** | **Well within SLA** |
 
 ### What this means in practice:
-- **Zero Host Lag:** Evaluating an entire sliding window takes less than 50 nanoseconds.
-- **Battery-Friendly (<0.8W):** The NPU operates at a <0.001% duty cycle during monitoring, drawing almost no power and generating zero fan noise.
-- **Sustained Burst Acceleration:** Under sustained batch tests (`npu-spike-test.ps1`), the NPU dynamically scales from its 6.2 MHz idle state to **1,005.1 MHz** with **64.1% utilization**, leaving host Zen 4 cores completely unburdened at $< 5.8\text{ W}$.
+- **Zero Host Lag:** In-memory tensor evaluation completes in under 50 nanoseconds with zero heap allocations during steady state.
+- **Architectural Design Target:** The multi-task neural architecture is engineered for direct out-of-band NPU execution via `ort::Session` and Vitis AI EP, with the CPU baseline serving as an instant, zero-cost fallback.
+- **Hardware Telemetry:** Under system load testing (`npu-spike-test.ps1`), hardware probes verify device readiness, clocking states, and runtime driver bindings across the APU.
 
 ---
 
