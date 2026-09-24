@@ -123,4 +123,52 @@ mod tests {
         assert!(!registry.is_quarantined(&target));
         assert_eq!(registry.active_rule_count(), 0);
     }
+
+    #[test]
+    fn test_remove_nonexistent_rule_returns_false() {
+        let mut registry = WfpRuleRegistry::new();
+        assert!(!registry.remove_rule(999));
+    }
+
+    #[test]
+    fn test_duplicate_target_both_quarantined() {
+        let mut registry = WfpRuleRegistry::new();
+        let target = QuarantineTarget::WslVirtualSwitch {
+            switch_name: "vEthernet (WSL)".into(),
+        };
+
+        let id1 = registry.add_quarantine_rule(target.clone(), 1_000);
+        let id2 = registry.add_quarantine_rule(target.clone(), 2_000);
+        assert_eq!(registry.active_rule_count(), 2);
+        assert!(registry.is_quarantined(&target));
+
+        // Removing one rule keeps the target quarantined because the other remains
+        assert!(registry.remove_rule(id1));
+        assert_eq!(registry.active_rule_count(), 1);
+        assert!(registry.is_quarantined(&target));
+
+        // Removing the second clears quarantine
+        assert!(registry.remove_rule(id2));
+        assert_eq!(registry.active_rule_count(), 0);
+        assert!(!registry.is_quarantined(&target));
+    }
+
+    #[test]
+    fn test_ipv6_quarantine_rule() {
+        use std::net::Ipv6Addr;
+        let mut registry = WfpRuleRegistry::new();
+        let target = QuarantineTarget::DestinationIpPort {
+            ip: IpAddr::V6(Ipv6Addr::new(0x2001, 0xdb8, 0, 0, 0, 0, 0, 1)),
+            port: Some(8443),
+            protocol: 6,
+        };
+
+        let id = registry.add_quarantine_rule(target.clone(), 1_000);
+        assert!(registry.is_quarantined(&target));
+        assert_eq!(registry.active_rule_count(), 1);
+
+        assert!(registry.remove_rule(id));
+        assert!(!registry.is_quarantined(&target));
+        assert_eq!(registry.active_rule_count(), 0);
+    }
 }

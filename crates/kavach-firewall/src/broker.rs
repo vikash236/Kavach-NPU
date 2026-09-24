@@ -262,4 +262,63 @@ mod tests {
         let err = broker.evaluate_and_enforce(&verdict, 2_000).unwrap_err();
         assert_eq!(err, DispatchError::ActionDenied);
     }
+
+    #[test]
+    fn test_broker_rejects_wrong_policy_generation() {
+        let mut broker = EnforcementBroker::new(7, false, 3, [0x78; 32], false);
+        let mut verdict = sample_valid_verdict(EnforcementAction::Alert, 0);
+        verdict.policy_generation = 6;
+
+        let err = broker.evaluate_and_enforce(&verdict, 2_000).unwrap_err();
+        assert_eq!(err, DispatchError::ActionDenied);
+    }
+
+    #[test]
+    fn test_broker_rejects_wrong_model_sha256() {
+        let mut broker = EnforcementBroker::new(7, false, 3, [0x78; 32], false);
+        let mut verdict = sample_valid_verdict(EnforcementAction::Alert, 0);
+        verdict.model_bundle_sha256 = [0x99; 32];
+
+        let err = broker.evaluate_and_enforce(&verdict, 2_000).unwrap_err();
+        assert_eq!(err, DispatchError::ActionDenied);
+    }
+
+    #[test]
+    fn test_broker_rejects_hard_kill_insufficient_evidence() {
+        let mut broker = EnforcementBroker::new(7, true, 3, [0x78; 32], false);
+        let mut verdict = sample_valid_verdict(EnforcementAction::HardKill, 100);
+        verdict.corroborating_evidence_count = 1;
+
+        let err = broker.evaluate_and_enforce(&verdict, 2_000).unwrap_err();
+        assert_eq!(err, DispatchError::ActionDenied);
+    }
+
+    #[test]
+    fn test_broker_replay_cache_expires_after_retention() {
+        let mut broker = EnforcementBroker::new(7, false, 3, [0x78; 32], false);
+        let verdict = sample_valid_verdict(EnforcementAction::Alert, 0);
+        broker
+            .evaluate_and_enforce(&verdict, 2_000)
+            .expect("accepted");
+        assert_eq!(broker.replay_cache_size(), 1);
+
+        broker.purge_expired_replay_cache(65_001);
+        assert_eq!(broker.replay_cache_size(), 0);
+
+        let mut fresh_verdict = verdict;
+        fresh_verdict.issued_at_unix_ms = 70_000;
+        fresh_verdict.expires_at_unix_ms = 75_000;
+        let action = broker.evaluate_and_enforce(&fresh_verdict, 71_000);
+        assert!(action.is_ok());
+    }
+
+    #[test]
+    fn test_broker_rejects_version_mismatch() {
+        let mut broker = EnforcementBroker::new(7, false, 3, [0x78; 32], false);
+        let mut verdict = sample_valid_verdict(EnforcementAction::Alert, 0);
+        verdict.protocol_version.major = 2;
+
+        let err = broker.evaluate_and_enforce(&verdict, 2_000).unwrap_err();
+        assert_eq!(err, DispatchError::VersionMismatch);
+    }
 }
