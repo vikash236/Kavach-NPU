@@ -1,8 +1,9 @@
-# Kavach-NPU v1.0.0: Hardware-Enforced Zero-Trust EDR Sentinel
+# Kavach-NPU v0.3.0-alpha: Architecture & Reference EDR Implementation
 
 **Target Architecture:** AMD Ryzen 7 7840HS (Phoenix APU) with AMD XDNA 1 NPU (AIE2 Array)  
 **Host Platform:** Windows 11 64-bit  
 **Language & Runtime:** Pure Rust 2024 Edition + Native AMD MCDM / Vitis AI Runtime  
+**Version:** `0.3.0-alpha` (re-versioned from legacy v1.0.0 tag)
 
 ---
 

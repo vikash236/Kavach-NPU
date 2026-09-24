@@ -428,7 +428,7 @@ dependencies = [
 
 [[package]]
 name = "kavach-beacon"
-version = "0.1.0"
+version = "0.3.0-alpha"
 dependencies = [
  "kavach-core",
  "sha2",
@@ -436,7 +436,7 @@ dependencies = [
 
 [[package]]
 name = "kavach-core"
-version = "0.1.0"
+version = "0.3.0-alpha"
 dependencies = [
  "ed25519-dalek",
  "hex",
@@ -448,7 +448,7 @@ dependencies = [
 
 [[package]]
 name = "kavach-events"
-version = "0.1.0"
+version = "0.3.0-alpha"
 dependencies = [
  "kavach-core",
  "sha2",
@@ -456,14 +456,14 @@ dependencies = [
 
 [[package]]
 name = "kavach-firewall"
-version = "0.1.0"
+version = "0.3.0-alpha"
 dependencies = [
  "kavach-core",
 ]
 
 [[package]]
 name = "kavach-npu"
-version = "0.1.0"
+version = "0.3.0-alpha"
 dependencies = [
  "criterion",
  "hex",
@@ -479,7 +479,7 @@ dependencies = [
 
 [[package]]
 name = "kavach-pack"
-version = "0.1.0"
+version = "0.3.0-alpha"
 dependencies = [
  "ed25519-dalek",
  "hex",
@@ -492,7 +492,7 @@ dependencies = [
 
 [[package]]
 name = "kavach-sensors"
-version = "0.1.0"
+version = "0.3.0-alpha"
 dependencies = [
  "crossbeam-channel",
  "kavach-beacon",
@@ -505,11 +505,11 @@ dependencies = [
 
 [[package]]
 name = "kavach-train"
-version = "0.1.0"
+version = "0.3.0-alpha"
 
 [[package]]
 name = "kavach-tripwire"
-version = "0.1.0"
+version = "0.3.0-alpha"
 dependencies = [
  "kavach-core",
  "sha2",
@@ -517,14 +517,14 @@ dependencies = [
 
 [[package]]
 name = "kavach-wsl"
-version = "0.1.0"
+version = "0.3.0-alpha"
 dependencies = [
  "kavach-core",
 ]
 
 [[package]]
 name = "kavach-wsl-guest"
-version = "0.1.0"
+version = "0.3.0-alpha"
 dependencies = [
  "hex",
  "kavach-core",
@@ -863,7 +863,7 @@ dependencies = [
 
 [[package]]
 name = "threat-injector"
-version = "0.1.0"
+version = "0.3.0-alpha"
 dependencies = [
  "hex",
  "kavach-beacon",
